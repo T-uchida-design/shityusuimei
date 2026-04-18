@@ -85,6 +85,18 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
 .shinoh-detail{font-size:.82rem;color:#666;margin-top:6px;line-height:1.7}
 .nayin-row{font-size:.9rem;margin-bottom:6px;color:#4a2c0e}
 .nayin-row span{color:#666;font-size:.8rem;margin-left:6px}
+.ai-section{background:#fffdf5;border:2px solid #8b6914;border-radius:10px;padding:20px;margin-top:16px}
+.ai-section h3{color:#4a2c0e;font-size:1rem;margin-bottom:12px;border-left:4px solid #8b6914;padding-left:8px}
+.api-key-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.api-key-row label{font-size:.82rem;color:#6b3a1f;white-space:nowrap}
+.api-key-row input{border:1px solid #c8a96e;border-radius:4px;padding:5px 10px;font-size:.82rem;width:320px;letter-spacing:.03em;background:#fffdf8}
+.api-key-status{font-size:.78rem;color:#227722}
+.btn-ai{background:#4a2c0e;color:#ffd700;border:none;border-radius:6px;padding:10px 28px;font-size:.95rem;font-family:inherit;cursor:pointer;letter-spacing:.1em}
+.btn-ai:hover{background:#6b3a1f}
+.btn-ai:disabled{background:#999;cursor:not-allowed;color:#ddd}
+.ai-result-box{margin-top:14px;border-top:1px solid #c8a96e;padding-top:14px;font-size:.9rem;line-height:1.9;color:#2c1a0e}
+.ai-result-box h4{color:#6b3a1f;font-size:1rem;margin:18px 0 6px;border-bottom:1px dashed #c8a96e;padding-bottom:4px}
+.ai-result-box h4:first-child{margin-top:0}
 </style>
 </head>
 <body>
@@ -196,6 +208,18 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
   <div class="section-box" style="margin-bottom:10px">
     <h3>納音（日柱）</h3>
     <div id="nayin-list"></div>
+  </div>
+
+  <div class="ai-section" id="ai-section" style="display:none">
+    <h3>✨ AI鑑定文生成</h3>
+    <div class="api-key-row">
+      <label>Anthropic APIキー：</label>
+      <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." oninput="saveApiKey()">
+      <span class="api-key-status" id="api-key-status"></span>
+    </div>
+    <p style="font-size:.78rem;color:#888;margin-bottom:10px">※ APIキーはブラウザのlocalStorageに保存されます。第三者と共有しないでください。</p>
+    <button class="btn-ai" id="btn-ai" onclick="generateReading()">✨ AI鑑定文を生成する</button>
+    <div id="ai-result-box" class="ai-result-box" style="display:none"></div>
   </div>
 </div>
 </div>
@@ -566,12 +590,16 @@ function detectCombosTable(pillars){
     const ai=allShiIdx(a),bi=allShiIdx(b);
     if(ai.length>0&&bi.length>0)r.push({c:'chu',lbl:'冲',txt:SHI[a]+SHI[b]+'冲',idx:[...ai,...bi]});
   });
-  // 勢刑: 寅(2)・巳(5)・申(8) から2つ以上が命式にある
-  {const sei=[2,5,8];const f=sei.map(x=>({x,idxs:allShiIdx(x)})).filter(({idxs})=>idxs.length>0);
-  if(f.length>=2){const allIdx=[...new Set(f.flatMap(v=>v.idxs))];r.push({c:'kei',lbl:'勢刑',txt:'勢刑('+f.map(v=>SHI[v.x]).join('・')+')',idx:allIdx});}}
-  // 恩刑: 丑(1)・戌(10)・未(7) から2つ以上が命式にある
-  {const on=[1,10,7];const f=on.map(x=>({x,idxs:allShiIdx(x)})).filter(({idxs})=>idxs.length>0);
-  if(f.length>=2){const allIdx=[...new Set(f.flatMap(v=>v.idxs))];r.push({c:'kei',lbl:'恩刑',txt:'恩刑('+f.map(v=>SHI[v.x]).join('・')+')',idx:allIdx});}}
+  // 勢刑: 有効ペアは 寅↔巳, 巳↔申 のみ（申↔寅は無効）
+  [[2,5],[5,8]].forEach(([a,b])=>{
+    const ai=allShiIdx(a),bi=allShiIdx(b);
+    if(ai.length>0&&bi.length>0)r.push({c:'kei',lbl:'勢刑',txt:'勢刑('+SHI[a]+'・'+SHI[b]+')',idx:[...new Set([...ai,...bi])]});
+  });
+  // 恩刑: 有効ペアは 丑↔戌, 戌↔未 のみ（丑↔未は無効）
+  [[1,10],[10,7]].forEach(([a,b])=>{
+    const ai=allShiIdx(a),bi=allShiIdx(b);
+    if(ai.length>0&&bi.length>0)r.push({c:'kei',lbl:'恩刑',txt:'恩刑('+SHI[a]+'・'+SHI[b]+')',idx:[...new Set([...ai,...bi])]});
+  });
   // 無刑: 子(0)・卯(3) が両方ある
   {const muA=allShiIdx(0),muB=allShiIdx(3);
   if(muA.length>0&&muB.length>0)r.push({c:'kei',lbl:'無刑',txt:'無刑(子・卯)',idx:[...muA,...muB]});}
@@ -606,73 +634,84 @@ const GOUSA=[{s:[11,3,7],k:8,b:5},{s:[2,6,10],k:11,b:8},{s:[5,9,1],k:2,b:11},{s:
 function detectTokuseiByPillar(res){
   const{pillars,dKi,mShi}=res;
   const shis=pillars.map(p=>p.shi),kans=pillars.map(p=>p.ki);
-  const yShi=pillars[0].shi;
+  const yIdx=0;
+  const mIdx=pillars.findIndex(p=>p.lbl==='月柱');
+  const dIdx=pillars.findIndex(p=>p.lbl==='日柱');
+  const yShi=pillars[yIdx].shi;
+  const dShi=pillars[dIdx].shi;
   const bp={};
   function add(i,n){if(!bp[i])bp[i]=[];bp[i].push(n);}
-  // 天乙貴人（地支）
-  TENICHI[dKi].forEach(s=>shis.forEach((sh,i)=>{if(sh===s)add(i,'天乙貴人');}));
-  // 文昌貴人（地支）
-  shis.forEach((sh,i)=>{if(sh===BUNSHOK[dKi])add(i,'文昌貴人');});
-  // 天徳貴人（天干）
-  const tti=KAN.indexOf(TENTOKU[mShi]);kans.forEach((k,i)=>{if(k===tti)add(i,'天徳貴人');});
-  // 月徳貴人（天干）
-  const gti=KAN.indexOf(GETTOKU[mShi]);kans.forEach((k,i)=>{if(k===gti)add(i,'月徳貴人');});
-  // 羊刃（地支）
-  shis.forEach((sh,i)=>{if(sh===YOJIN[dKi])add(i,'羊刃');});
-  // 飛刃（地支）
-  shis.forEach((sh,i)=>{if(sh===HIJIN[dKi])add(i,'飛刃');});
-  // 建禄（地支）
-  shis.forEach((sh,i)=>{if(sh===ROKU[dKi])add(i,'建禄');});
-  // 桃花殺（咸池）：子(0)・卯(3)・午(6)・酉(9)の4つ全が命式中に揃ったときのみ
+  // 天乙貴人（日干→地支、日柱自身除く）
+  TENICHI[dKi].forEach(s=>shis.forEach((sh,i)=>{if(sh===s&&i!==dIdx)add(i,'天乙貴人');}));
+  // 文昌貴人（日干→地支、日柱自身除く）
+  shis.forEach((sh,i)=>{if(sh===BUNSHOK[dKi]&&i!==dIdx)add(i,'文昌貴人');});
+  // 天徳貴人（月支→天干、月柱自身除く）
+  const tti=KAN.indexOf(TENTOKU[mShi]);kans.forEach((k,i)=>{if(k===tti&&i!==mIdx)add(i,'天徳貴人');});
+  // 月徳貴人（月支→天干、月柱自身除く）
+  const gti=KAN.indexOf(GETTOKU[mShi]);kans.forEach((k,i)=>{if(k===gti&&i!==mIdx)add(i,'月徳貴人');});
+  // 羊刃（日干→地支、日柱自身除く）
+  shis.forEach((sh,i)=>{if(sh===YOJIN[dKi]&&i!==dIdx)add(i,'羊刃');});
+  // 飛刃（日干→地支、日柱自身除く）
+  shis.forEach((sh,i)=>{if(sh===HIJIN[dKi]&&i!==dIdx)add(i,'飛刃');});
+  // 咸池（年支・日支→各柱、基準柱自身除く）
+  [[yShi,yIdx],[dShi,dIdx]].forEach(([ref,skip])=>{
+    const ks=MOMOHA[ref];
+    shis.forEach((sh,i)=>{if(sh===ks&&i!==skip)add(i,'咸池');});
+  });
+  // 桃花殺：子・卯・午・酉の4つ全て命式中に揃ったときのみ
   const SHIMOMOHA=[0,3,6,9];
   if(SHIMOMOHA.every(s=>shis.includes(s))){
     shis.forEach((sh,i)=>{if(SHIMOMOHA.includes(sh))add(i,'桃花殺');});
   }
-  // 劫殺・亡神
+  // 劫殺・亡神（年支・日支→各柱、基準柱自身除く）
   GOUSA.forEach(({s,k,b})=>{
-    if(s.includes(yShi)){
-      shis.forEach((sh,i)=>{
-        if(sh===k)add(i,'劫殺');
-        if(sh===b)add(i,'亡神');
-      });
-    }
+    [[yShi,yIdx],[dShi,dIdx]].forEach(([ref,skip])=>{
+      if(s.includes(ref)){
+        shis.forEach((sh,i)=>{
+          if(sh===k&&i!==skip)add(i,'劫殺');
+          if(sh===b&&i!==skip)add(i,'亡神');
+        });
+      }
+    });
   });
-  // 将星（年支の三合局の中心地支）
-  const SHOJO_MAP=[[0,8,4],[2,6,10],[3,11,7],[5,9,1]]; // 各グループ→将星地支
-  const SHOJO_SHI=[0,6,3,9]; // 子,午,卯,酉
+  // 将星（年支→各柱、年柱自身除く）
+  const SHOJO_MAP=[[0,8,4],[2,6,10],[3,11,7],[5,9,1]];
+  const SHOJO_SHI=[0,6,3,9];
   SHOJO_MAP.forEach((grp,gi)=>{
     if(grp.includes(yShi)){
-      shis.forEach((sh,i)=>{if(sh===SHOJO_SHI[gi])add(i,'将星');});
+      shis.forEach((sh,i)=>{if(sh===SHOJO_SHI[gi]&&i!==yIdx)add(i,'将星');});
     }
   });
-  // 華蓋（年支の三合局の「墓」地支）
+  // 華蓋（月支→各柱、月柱自身除く）
   const KAGEI_MAP=[[0,8,4],[2,6,10],[3,11,7],[5,9,1]];
-  const KAGEI_SHI=[4,10,7,1]; // 辰,戌,未,丑
+  const KAGEI_SHI=[4,10,7,1];
   KAGEI_MAP.forEach((grp,gi)=>{
-    if(grp.includes(yShi)){
-      shis.forEach((sh,i)=>{if(sh===KAGEI_SHI[gi])add(i,'華蓋');});
+    if(grp.includes(mShi)){
+      shis.forEach((sh,i)=>{if(sh===KAGEI_SHI[gi]&&i!==mIdx)add(i,'華蓋');});
     }
   });
-  // 驛馬（年支の三合局の「生」地支）
+  // 驛馬（年支・日支→各柱、基準柱自身除く）
   const EKIBA_MAP=[[0,8,4],[2,6,10],[3,11,7],[5,9,1]];
-  const EKIBA_SHI=[2,8,11,5]; // 寅,申,亥,巳
+  const EKIBA_SHI=[2,8,11,5];
   EKIBA_MAP.forEach((grp,gi)=>{
-    if(grp.includes(yShi)){
-      shis.forEach((sh,i)=>{if(sh===EKIBA_SHI[gi])add(i,'驛馬');});
-    }
+    [[yShi,yIdx],[dShi,dIdx]].forEach(([ref,skip])=>{
+      if(grp.includes(ref)){
+        shis.forEach((sh,i)=>{if(sh===EKIBA_SHI[gi]&&i!==skip)add(i,'驛馬');});
+      }
+    });
   });
-  // 魁罡（日柱が特定干支）
-  const KAIKOH=[[0,4],[0,10],[6,4],[6,10],[8,4],[8,10]]; // 甲辰,甲戌,庚辰,庚戌,壬辰,壬戌
-  KAIKOH.forEach(([k,s])=>{if(dKi===k&&shis[pillars.findIndex(p=>p.lbl==='日柱')]===s)add(pillars.findIndex(p=>p.lbl==='日柱'),'魁罡');});
-  // 紅艶殺（日干から地支）
-  const KOEN=[6,8,2,7,4,4,10,9,0,8]; // 甲→午,乙→申,丙→寅,丁→未,戊→辰,己→辰,庚→戌,辛→酉,壬→子,癸→申
-  shis.forEach((sh,i)=>{if(sh===KOEN[dKi])add(i,'紅艶殺');});
-  // 天厨貴人（日干から地支）
-  const TENCHU=[5,6,8,9,11,0,1,2,3,4]; // 甲→巳,乙→午,丙→申,丁→酉,戊→亥,己→子,庚→丑,辛→寅,壬→卯,癸→辰
-  shis.forEach((sh,i)=>{if(sh===TENCHU[dKi])add(i,'天厨貴人');});
-  // 金輿禄（日干から地支）甲→辰,乙→巳,丙→未,丁→申,戊→未,己→申,庚→戌,辛→亥,壬→丑,癸→寅
+  // 魁罡（日柱が特定干支→日柱自身に付与）
+  const KAIKOH=[[0,4],[0,10],[6,4],[6,10],[8,4],[8,10]];
+  KAIKOH.forEach(([k,s])=>{if(dKi===k&&shis[dIdx]===s)add(dIdx,'魁罡');});
+  // 紅艶殺（日干→地支、日柱自身除く）
+  const KOEN=[6,8,2,7,4,4,10,9,0,8];
+  shis.forEach((sh,i)=>{if(sh===KOEN[dKi]&&i!==dIdx)add(i,'紅艶殺');});
+  // 天厨貴人（日干→地支、日柱自身除く）
+  const TENCHU=[5,6,8,9,11,0,1,2,3,4];
+  shis.forEach((sh,i)=>{if(sh===TENCHU[dKi]&&i!==dIdx)add(i,'天厨貴人');});
+  // 金輿禄（日干→地支、日柱自身除く）
   const KINYO=[4,5,7,8,7,8,10,11,1,2];
-  shis.forEach((sh,i)=>{if(sh===KINYO[dKi])add(i,'金輿禄');});
+  shis.forEach((sh,i)=>{if(sh===KINYO[dKi]&&i!==dIdx)add(i,'金輿禄');});
   return bp;
 }
 
@@ -906,10 +945,10 @@ function externalCombos(eKi,eShi,refKi,refShi){
   // 2地支の比較なので常に「半会」
   SANGO.forEach(({s,n})=>{if(s.includes(eShi)&&s.includes(refShi)&&eShi!==refShi)r.push('半会');});
   CHU.forEach(([a,b])=>{if((a===eShi&&b===refShi)||(b===eShi&&a===refShi))r.push('冲');});
-  // 勢刑: 寅(2)・巳(5)・申(8) のペア
-  if([2,5,8].includes(eShi)&&[2,5,8].includes(refShi)&&eShi!==refShi)r.push('勢刑');
-  // 恩刑: 丑(1)・戌(10)・未(7) のペア
-  if([1,10,7].includes(eShi)&&[1,10,7].includes(refShi)&&eShi!==refShi)r.push('恩刑');
+  // 勢刑: 有効ペアは 寅↔巳, 巳↔申 のみ
+  if([[2,5],[5,8]].some(([a,b])=>(eShi===a&&refShi===b)||(eShi===b&&refShi===a)))r.push('勢刑');
+  // 恩刑: 有効ペアは 丑↔戌, 戌↔未 のみ
+  if([[1,10],[10,7]].some(([a,b])=>(eShi===a&&refShi===b)||(eShi===b&&refShi===a)))r.push('恩刑');
   // 無刑: 子(0)・卯(3)
   if((eShi===0&&refShi===3)||(eShi===3&&refShi===0))r.push('無刑');
   // 自刑: 辰(4)・午(6)・酉(9)・亥(11) が同じ
@@ -949,6 +988,11 @@ function calculate(){
 }
 
 function render(res){
+  _lastRes=res;
+  document.getElementById('ai-section').style.display='block';
+  document.getElementById('ai-result-box').style.display='none';
+  document.getElementById('btn-ai').textContent='✨ AI鑑定文を生成する';
+  document.getElementById('btn-ai').disabled=false;
   const{pillars,kuu,year,month,day,hour,min,gender,diff,isJun,rYear,rMonth,daiun,dKi}=res;
   const hs=hour!==null?` ${hour}時${min||0}分生まれ`:'';
   const ds=diff!==0?`（地方時補正${diff>0?'+':''}${diff}分）`:'';
@@ -1076,6 +1120,154 @@ function render(res){
 
   // 魂の絵（干支象意SVG）
   renderSoulImage(res);
+}
+
+// ===== AI鑑定文生成 =====
+let _lastRes=null;
+
+function saveApiKey(){
+  const k=document.getElementById('api-key-input').value.trim();
+  if(k)localStorage.setItem('shisui_api_key',k);
+  document.getElementById('api-key-status').textContent=k?'✓ 保存済み':'';
+}
+
+function loadApiKey(){
+  const k=localStorage.getItem('shisui_api_key')||'';
+  const el=document.getElementById('api-key-input');
+  if(el){el.value=k;document.getElementById('api-key-status').textContent=k?'✓ 保存済み':'';}
+}
+window.addEventListener('load',loadApiKey);
+
+function buildGogyoForPrompt(res){
+  const cnt=[0,0,0,0,0];
+  res.pillars.forEach(p=>{
+    cnt[Math.floor(p.ki/2)]++;
+    if(p.zk){const zi=KAN.indexOf(p.zk);if(zi>=0)cnt[Math.floor(zi/2)]++;}
+  });
+  return `木:${cnt[0]} 火:${cnt[1]} 土:${cnt[2]} 金:${cnt[3]} 水:${cnt[4]}`;
+}
+
+function buildPrompt(res){
+  const gstr=res.gender==='M'?'男性':'女性';
+  const cyear=new Date().getFullYear();
+  const age=cyear-res.year;
+  const dayP=res.pillars.find(p=>p.lbl==='日柱');
+
+  const plines=res.pillars.map(p=>{
+    const ts=p.lbl==='日柱'?'日主（本人）':(p.ts||'—');
+    return `${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（蔵干:${p.zk||'—'} / 通変星:${ts} / 十二運:${p.ju||'—'}）`;
+  });
+
+  const kuuStr=`${SHI[res.kuu[0]]}・${SHI[res.kuu[1]]}`;
+  const kuuHit=res.pillars.filter(p=>p.shi===res.kuu[0]||p.shi===res.kuu[1]).map(p=>p.lbl);
+  const kuuDesc=kuuHit.length?`（${kuuHit.join('・')}が空亡）`:'（命式中なし）';
+
+  const duLines=res.daiun.slice(0,8).map(d=>{
+    const ea=d.endAge!==undefined?d.endAge:d.age+10;
+    const cur=(age>=d.age&&age<ea)?'  ← 現在':'';
+    return `  ${d.age}〜${ea}歳: ${KANSHI60[d.ks]}（通変:${d.ts} / 十二運:${d.ju}）${cur}`;
+  });
+
+  const tokByP=detectTokuseiByPillar(res);
+  const tokLines=Object.entries(tokByP).map(([idx,stars])=>{
+    const lbl=res.pillars[parseInt(idx)]?.lbl||'';
+    return `  ${lbl}: ${stars.join(' ')}`;
+  });
+
+  const combos=detectCombosTable(res.pillars);
+  const comboStrs=[...new Set(combos.map(c=>c.lbl+': '+c.txt))];
+
+  const hourStr=res.hour!==null?` ${res.hour}時${res.min||0}分`:'（時刻不明）';
+
+  return `あなたは四柱推命の専門占い師です。以下の命式データを分析し、温かく前向きな鑑定書を日本語で作成してください。
+
+【基本情報】
+生年月日: ${res.year}年${res.month}月${res.day}日${hourStr}生まれ
+性別: ${gstr}
+現在年齢: ${age}歳前後
+日主（本人の星）: ${KAN[dayP.ki]}（${gstr}の${KAN[dayP.ki]}日主）
+
+【命式（四柱）】
+${plines.join('\n')}
+
+【五行バランス】
+${buildGogyoForPrompt(res)}
+
+【空亡（天中殺）】
+${kuuStr}空亡 ${kuuDesc}
+
+【大運の流れ（10年ごと）】
+立運: ${res.isJun?'順行':'逆行'} / ${res.rYear}歳${res.rMonth?res.rMonth+'ヶ月':''}から大運スタート
+${duLines.join('\n')}
+
+【特殊星】
+${tokLines.length?tokLines.join('\n'):'  なし'}
+
+【命式内の合冲刑害】
+${comboStrs.length?'  '+comboStrs.join('\n  '):'  なし'}
+
+---
+以下の5項目の構成で鑑定書を作成してください。各項目は200〜300字程度で、命式の具体的な星・干支を引用しながら語りかけるように記述してください。専門用語には平易な補足を添えてください。
+
+## ◆ あなたの本質・天命
+## ◆ 強み・才能・輝ける場所
+## ◆ 課題・成長のテーマ
+## ◆ 今の運気（現在の大運・年運）
+## ◆ これからへのメッセージ`;
+}
+
+async function generateReading(){
+  const apiKey=(document.getElementById('api-key-input').value||'').trim()||localStorage.getItem('shisui_api_key')||'';
+  if(!apiKey){alert('APIキーを入力してください（sk-ant-api03-... の形式）');return;}
+  if(!_lastRes){alert('先に命式を計算してください');return;}
+
+  const btn=document.getElementById('btn-ai');
+  const box=document.getElementById('ai-result-box');
+  btn.disabled=true;
+  btn.textContent='生成中...';
+  box.style.display='block';
+  box.innerHTML='<p style="color:#888;font-size:.9rem">✨ 鑑定文を生成しています。10〜20秒ほどお待ちください...</p>';
+
+  try{
+    const prompt=buildPrompt(_lastRes);
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:2000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({error:{message:resp.statusText}}));
+      throw new Error(err.error?.message||resp.statusText);
+    }
+
+    const data=await resp.json();
+    const text=data.content?.[0]?.text||'（生成失敗）';
+
+    // Markdown → HTML変換（## ◆ 見出し対応）
+    let html=text
+      .replace(/## ◆ (.+)/g,'<h4>◆ $1</h4>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .split('\n\n').join('</p><p>')
+      .split('\n').join('<br>');
+    html='<p>'+html+'</p>';
+    box.innerHTML=html;
+
+  }catch(e){
+    box.innerHTML=`<p style="color:#cc2222">❌ エラー: ${e.message}<br><small>APIキーが正しいか、残高があるかご確認ください。</small></p>`;
+  }finally{
+    btn.disabled=false;
+    btn.textContent='✨ AI鑑定文を再生成する';
+  }
 }
 </script>
 </body>
