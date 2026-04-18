@@ -85,6 +85,25 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
 .shinoh-detail{font-size:.82rem;color:#666;margin-top:6px;line-height:1.7}
 .nayin-row{font-size:.9rem;margin-bottom:6px;color:#4a2c0e}
 .nayin-row span{color:#666;font-size:.8rem;margin-left:6px}
+.aishoh-input-box{background:#fff;border:2px solid #4a2c0e;border-radius:8px;padding:20px;margin-bottom:16px}
+.aishoh-input-box h2{font-size:1.05rem;color:#4a2c0e;margin-bottom:14px;border-left:4px solid #4a2c0e;padding-left:10px}
+.btn-aishoh{background:#4a2c0e;color:#ffd700;border:none;border-radius:6px;padding:10px 28px;font-size:.95rem;font-family:inherit;cursor:pointer;letter-spacing:.1em}
+.btn-aishoh:hover{background:#6b3a1f}
+.two-meishiki{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}
+@media(max-width:700px){.two-meishiki{grid-template-columns:1fr}}
+.aishoh-person-label{text-align:center;font-weight:bold;color:#4a2c0e;margin-bottom:6px;font-size:.92rem}
+.pattern-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:8px}
+@media(max-width:700px){.pattern-grid{grid-template-columns:1fr}}
+.pattern-card{background:#fffdf5;border:1px solid #c8a96e;border-radius:6px;padding:10px;text-align:center}
+.pattern-card .p-label{font-size:.75rem;color:#888;margin-bottom:4px}
+.pattern-card .p-main{font-size:1.25rem;font-weight:bold;color:#4a2c0e;margin:4px 0}
+.pattern-card .p-sub{font-size:.8rem;color:#555}
+.cross-table{border-collapse:collapse;width:100%;font-size:.85rem}
+.cross-table th{background:#4a2c0e;color:#fff;padding:6px 10px;text-align:center}
+.cross-table td{border:1px solid #ddd;padding:6px 10px;text-align:center}
+.yojin-table{border-collapse:collapse;width:100%;font-size:.88rem;margin-bottom:8px}
+.yojin-table th{background:#6b3a1f;color:#fff;padding:6px 10px;text-align:center}
+.yojin-table td{border:1px solid #ddd;padding:8px 10px}
 .ai-section{background:#fffdf5;border:2px solid #8b6914;border-radius:10px;padding:20px;margin-top:16px}
 .ai-section h3{color:#4a2c0e;font-size:1rem;margin-bottom:12px;border-left:4px solid #8b6914;padding-left:8px}
 .api-key-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
@@ -184,6 +203,7 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
         <div style="display:flex;align-items:center;justify-content:center">
           <svg id="gogyo-svg" width="250" height="260"></svg>
         </div>
+        <div id="chokou-box" style="margin-top:8px;padding:8px 12px;background:#fffdf5;border:1px solid #c8a96e;border-radius:6px;font-size:.85rem;color:#4a2c0e"></div>
       </div>
       <div class="section-box">
         <h3>魂の絵</h3>
@@ -210,6 +230,51 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
     <div id="nayin-list"></div>
   </div>
 
+
+</div>
+
+<!-- 相性鑑定入力 -->
+<div class="aishoh-input-box" id="aishoh-input-box" style="display:none">
+  <h2>💑 相性鑑定 — Bさんの情報を入力</h2>
+  <div class="form-row">
+    <div class="form-group"><label>生年（西暦）</label><input type="number" id="b-year" value="1992" min="1920" max="2100"></div>
+    <div class="form-group"><label>月</label><input type="number" id="b-month" value="3" min="1" max="12"></div>
+    <div class="form-group"><label>日</label><input type="number" id="b-day" value="20" min="1" max="31"></div>
+    <div class="form-group"><label>時（24h）</label><input type="number" id="b-hour" min="0" max="23" placeholder="任意"></div>
+    <div class="form-group"><label>分</label><input type="number" id="b-minute" min="0" max="59" placeholder="任意"></div>
+    <div class="form-group"><label>性別</label><select id="b-gender"><option value="M">男性</option><option value="F">女性</option></select></div>
+  </div>
+  <div class="form-row" style="margin-top:12px">
+    <button class="btn-aishoh" onclick="calculateAishoh()">💑 相性を分析する</button>
+  </div>
+  <div id="aishoh-err" class="error-msg" style="display:none"></div>
+</div>
+
+<!-- 相性鑑定結果 -->
+<div id="aishoh-result" style="display:none">
+  <p class="meishiki-title">💑 相性鑑定結果</p>
+  <div class="two-meishiki">
+    <div>
+      <p class="aishoh-person-label" id="aishoh-title-a"></p>
+      <div class="meishiki-wrap"><table class="meishiki-table" id="aishoh-ms-a"></table></div>
+    </div>
+    <div>
+      <p class="aishoh-person-label" id="aishoh-title-b" style="color:#4a2c0e"></p>
+      <div class="meishiki-wrap"><table class="meishiki-table" id="aishoh-ms-b"></table></div>
+    </div>
+  </div>
+  <div class="section-box" style="margin-bottom:10px">
+    <h3>調候用神の有無</h3>
+    <div id="aishoh-yojin"></div>
+  </div>
+  <div class="section-box" style="margin-bottom:10px">
+    <h3>日干・日支・月支 の比較</h3>
+    <div id="aishoh-patterns"></div>
+  </div>
+  <div class="section-box" style="margin-bottom:10px">
+    <h3>命式間の合・冲・刑・害</h3>
+    <div id="aishoh-combos"></div>
+  </div>
 
 </div>
 </div>
@@ -974,8 +1039,7 @@ function calculate(){
     render(res);
     document.getElementById('result').style.display='block';
     document.getElementById('result').scrollIntoView({behavior:'smooth'});
-  }catch(e){showErr('計算エラー: '+e.message+' | '+e.stack?.split('
-')[1]);console.error(e);}
+  }catch(e){showErr('計算エラー: '+e.message);console.error(e);}
 }
 
 function render(res){
@@ -1072,6 +1136,13 @@ function render(res){
   // 五行バランス・身旺身弱（SVGレーダー）
   renderRadar(res);
 
+  // 調候用神
+  const chokouList=getChokouYojin(dKi,pillars.find(p=>p.lbl==='月柱').shi);
+  const chokouInChart=chokouList.filter(k=>pillars.some(p=>KAN[p.ki]===k));
+  const chokouHtml=`<b>調候用神：</b>${chokouList.join('・')||'—'}　`
+    +(chokouInChart.length?`<span style="color:#225522">✓ 命式中にあり（${chokouInChart.join('・')}）</span>`:'');
+  document.getElementById('chokou-box').innerHTML=chokouHtml;
+
   // 大運（日柱・月柱との関係列を追加）
   const rStr=rMonth?`${rYear}歳${rMonth}ヶ月`:`${rYear}歳`;
   document.getElementById('daiun-info').textContent=`（${isJun?'順行':'逆行'} / 立運: ${rStr}から）`;
@@ -1113,6 +1184,228 @@ function render(res){
 
   // 魂の絵（干支象意SVG）
   renderSoulImage(res);
+
+  // 相性鑑定フォームを表示
+  document.getElementById('aishoh-input-box').style.display='block';
+  document.getElementById('aishoh-result').style.display='none';
+}
+
+// ===== 相性鑑定 =====
+let _lastResB=null;
+
+// 調候用神テーブル（日干index × 月支index → 用神天干リスト）
+// 行=日干[甲乙丙丁戊己庚辛壬癸]、列=月支[子丑寅卯辰巳午未申酉戌亥]
+const CHOKOU_TABLE=[
+  // 甲(0) [子,丑,寅,卯,辰,巳,午,未,申,酉,戌,亥]
+  [['丁','庚','戊','丙'],['丁','庚','丙'],['丙','癸'],['庚','丁','己'],['庚','丁','壬'],['癸','庚','丁'],['癸','庚','丁'],['癸','庚','丁'],['庚','壬','丁'],['庚','丙','丁'],['庚','甲','丁','癸','壬'],['庚','丙','戊','丁']],
+  // 乙(1)
+  [['丙'],['丙'],['丙','癸'],['丙','癸'],['癸','丙'],['癸','辛'],['癸','丙','辛'],['癸','丙','辛'],['丙','癸','己'],['丙','丁','癸'],['丙','癸','辛'],['丙','戊']],
+  // 丙(2)
+  [['壬','戊','甲','己'],['壬','甲'],['壬'],['壬','己','庚','辛'],['壬','甲','庚'],['壬','庚','癸'],['壬','庚'],['壬','庚'],['壬','戊'],['壬','癸'],['甲','壬'],['甲','壬','戊']],
+  // 丁(3)
+  [['甲','庚'],['甲','庚'],['甲','庚'],['庚','甲'],['甲','庚'],['甲','庚'],['壬','庚','癸'],['甲','庚','壬'],['甲','庚','丙','戊'],['甲','庚','丙','戊'],['甲','庚'],['甲','庚']],
+  // 戊(4)
+  [['丙','甲'],['丙','甲'],['丙','甲','癸'],['丙','甲','癸'],['甲','丙','癸'],['甲','丙','癸'],['壬','丙','甲'],['癸','丙','甲'],['丙','甲','癸'],['丙','癸'],['甲','癸','丙'],['丙','甲']],
+  // 己(5)
+  [['丙','甲','戊'],['丙','甲','戊'],['丙','癸','甲'],['甲','癸','丙'],['丙','癸','甲'],['癸','丙'],['癸','丙'],['癸','丙'],['丙','癸'],['丙','癸'],['甲','丙','癸'],['丙','甲','戊']],
+  // 庚(6)
+  [['丁','丙','甲'],['丙','丁','甲'],['戊','丙','甲'],['丁','甲'],['甲','丁'],['壬','戊','丙','丁'],['壬','癸'],['丁','甲'],['丁','甲'],['丁','甲','丙'],['甲','壬','丁'],['丁','丙','甲']],
+  // 辛(7)
+  [['丙','壬','甲','戊'],['丙','壬','甲','戊'],['己','壬','庚'],['壬','甲','己'],['壬','甲'],['壬','癸','甲'],['壬','癸','甲','己'],['壬','庚','甲'],['壬','甲'],['壬','甲'],['壬','甲'],['壬','丙']],
+  // 壬(8)
+  [['戊','丙'],['丙','丁','甲'],['庚','丙','戊'],['戊','辛','庚'],['甲','庚'],['壬','庚','癸','辛'],['癸','庚','辛'],['辛','甲','癸'],['戊','丁'],['甲','庚'],['甲','丙'],['戊','丙','庚']],
+  // 癸(9)
+  [['丙','辛'],['丙','丁'],['辛','丙'],['庚','辛'],['丙','辛','甲'],['辛','壬','庚'],['庚','壬','癸','辛'],['庚','壬','癸','辛'],['丁','甲'],['辛','丙'],['辛','壬','癸','甲'],['庚','丁','戊','辛']],
+];
+
+function getChokouYojin(dKi,mShi){return (CHOKOU_TABLE[dKi]&&CHOKOU_TABLE[dKi][mShi])||[];}
+
+function hasKanInChart(kan,pillars){
+  return pillars.some(p=>KAN[p.ki]===kan);
+}
+
+function branchRel(a,b){
+  const r=[];
+  SHIGO.forEach(([x,y])=>{if((x===a&&y===b)||(y===a&&x===b))r.push('支合');});
+  if(Math.abs(a-b)===6)r.push('冲');
+  GAI.forEach(([x,y])=>{if((x===a&&y===b)||(y===a&&x===b))r.push('害');});
+  if([[2,5],[5,8]].some(([x,y])=>(a===x&&b===y)||(a===y&&b===x)))r.push('勢刑');
+  if([[1,10],[10,7]].some(([x,y])=>(a===x&&b===y)||(a===y&&b===x)))r.push('恩刑');
+  if((a===0&&b===3)||(a===3&&b===0))r.push('無刑');
+  if([4,6,9,11].includes(a)&&a===b)r.push('自刑');
+  return r;
+}
+
+function buildMiniMeishiki(pillars){
+  const disp=[...pillars].reverse();
+  let h=`<thead><tr><th></th>`;
+  disp.forEach(p=>h+=`<th${p.lbl==='日柱'?' class="day-col-header"':''}>${p.lbl}</th>`);
+  h+=`</tr></thead><tbody>`;
+  [['天干',p=>KAN[p.ki],'kan-cell'],['地支',p=>SHI[p.shi],'shi-cell'],
+   ['蔵干',p=>p.zk||'—','zokkan-cell'],['通変星',p=>p.ts||'—','tsuhen-cell'],
+   ['十二運',p=>p.ju,'juni-cell']].forEach(([lbl,fn,cls])=>{
+    h+=`<tr><td class="row-label">${lbl}</td>`;
+    disp.forEach(p=>h+=`<td class="${cls}${p.lbl==='日柱'?' day-col':''}">${fn(p)}</td>`);
+    h+=`</tr>`;
+  });
+  return h+`</tbody>`;
+}
+
+function crossCombos(pA,pB){
+  const res=[];
+  pA.forEach(a=>{pB.forEach(b=>{
+    const r=[];
+    KANGO.forEach(([x,y])=>{if((x===a.ki&&y===b.ki)||(y===a.ki&&x===b.ki))r.push('干合');});
+    r.push(...branchRel(a.shi,b.shi));
+    if(r.length)res.push({lblA:a.lbl,lblB:b.lbl,kanA:KAN[a.ki],shiA:SHI[a.shi],kanB:KAN[b.ki],shiB:SHI[b.shi],r});
+  });});
+  return res;
+}
+
+function calculateAishoh(){
+  const errEl=document.getElementById('aishoh-err');
+  errEl.style.display='none';
+  if(!_lastRes){errEl.textContent='先にAさんの命式を計算してください';errEl.style.display='';return;}
+  const bY=+document.getElementById('b-year').value;
+  const bM=+document.getElementById('b-month').value;
+  const bD=+document.getElementById('b-day').value;
+  const bHv=document.getElementById('b-hour').value;
+  const bMv=document.getElementById('b-minute').value;
+  const bG=document.getElementById('b-gender').value;
+  if(!bY||!bM||!bD||bY<1920||bY>2100){errEl.textContent='Bさんの生年月日を正しく入力してください';errEl.style.display='';return;}
+  try{
+    const resB=calc(bY,bM,bD,bHv!==''?+bHv:null,bMv!==''?+bMv:0,bG,0);
+    if(resB.err){errEl.textContent=resB.err;errEl.style.display='';return;}
+    _lastResB=resB;
+    renderAishoh(_lastRes,resB);
+    document.getElementById('aishoh-result').style.display='block';
+    document.getElementById('aishoh-result').scrollIntoView({behavior:'smooth'});
+  }catch(e){errEl.textContent='計算エラー: '+e.message;errEl.style.display='';console.error(e);}
+}
+
+function renderAishoh(resA,resB){
+  const gA=resA.gender==='M'?'男性':'女性';
+  const gB=resB.gender==='M'?'男性':'女性';
+  document.getElementById('aishoh-title-a').textContent=`Aさん: ${resA.year}年${resA.month}月${resA.day}日（${gA}）`;
+  document.getElementById('aishoh-title-b').textContent=`Bさん: ${resB.year}年${resB.month}月${resB.day}日（${gB}）`;
+  document.getElementById('aishoh-ms-a').innerHTML=buildMiniMeishiki(resA.pillars);
+  document.getElementById('aishoh-ms-b').innerHTML=buildMiniMeishiki(resB.pillars);
+
+  // 調候用神
+  const mShiA=resA.pillars.find(p=>p.lbl==='月柱').shi;
+  const mShiB=resB.pillars.find(p=>p.lbl==='月柱').shi;
+  const yA=getChokouYojin(resA.dKi,mShiA),yB=getChokouYojin(resB.dKi,mShiB);
+  const yAinB=yA.filter(k=>hasKanInChart(k,resB.pillars));
+  const yBinA=yB.filter(k=>hasKanInChart(k,resA.pillars));
+  document.getElementById('aishoh-yojin').innerHTML=`
+  <table class="yojin-table"><thead><tr><th></th><th>調候用神</th><th>相手の命式に含まれるか</th></tr></thead><tbody>
+  <tr><td><b>Aさん</b></td><td>${yA.join('・')||'—'}</td>
+    <td>${yAinB.length?'<span style="color:#225522;font-weight:bold">✓ あり（'+yAinB.join('・')+'）</span>':'<span style="color:#882222">✗ なし</span>'}</td></tr>
+  <tr><td><b>Bさん</b></td><td>${yB.join('・')||'—'}</td>
+    <td>${yBinA.length?'<span style="color:#225522;font-weight:bold">✓ あり（'+yBinA.join('・')+'）</span>':'<span style="color:#882222">✗ なし</span>'}</td></tr>
+  </tbody></table>
+  <p style="font-size:.75rem;color:#888">※相手の命式（天干・蔵干）に用神が含まれる場合、相手がその人に必要な要素を持っています。</p>`;
+
+  // 3パターン比較
+  const dA=resA.pillars.find(p=>p.lbl==='日柱');
+  const dB=resB.pillars.find(p=>p.lbl==='日柱');
+  const pats=[
+    {lbl:'日干 × 日干',tA:KAN[dA.ki],tB:KAN[dB.ki],
+     det:`BからみたA: ${tsuhen(dB.ki,dA.ki)} / AからみたB: ${tsuhen(dA.ki,dB.ki)}`},
+    {lbl:'日支 × 日支',tA:SHI[dA.shi],tB:SHI[dB.shi],
+     det:(()=>{const r=branchRel(dA.shi,dB.shi);return r.length?r.join('・'):'特になし';})()},
+    {lbl:'月支 × 月支',tA:SHI[mShiA],tB:SHI[mShiB],
+     det:(()=>{const r=branchRel(mShiA,mShiB);return r.length?r.join('・'):'特になし';})()},
+  ];
+  document.getElementById('aishoh-patterns').innerHTML=`<div class="pattern-grid">${
+    pats.map(p=>`<div class="pattern-card">
+      <div class="p-label">${p.lbl}</div>
+      <div class="p-main">A: ${p.tA}　×　B: ${p.tB}</div>
+      <div class="p-sub">${p.det}</div>
+    </div>`).join('')}</div>`;
+
+  // 命式間の合冲刑害
+  const crosses=crossCombos(resA.pillars,resB.pillars);
+  document.getElementById('aishoh-combos').innerHTML=crosses.length?
+    `<table class="cross-table"><thead><tr><th>Aさん側</th><th>Bさん側</th><th>関係</th></tr></thead><tbody>${
+      crosses.map(c=>`<tr><td>${c.lblA}（${c.kanA}${c.shiA}）</td><td>${c.lblB}（${c.kanB}${c.shiB}）</td><td>${c.r.join('・')}</td></tr>`).join('')
+    }</tbody></table>`:
+    `<p style="color:#888;font-size:.88rem">特記すべき合・冲・刑・害はありません。</p>`;
+
+  // AI相性セクション
+  const aiEl=document.getElementById('aishoh-ai-section');
+  if(aiEl){
+    aiEl.style.display='block';
+    document.getElementById('aishoh-ai-result-box').style.display='none';
+    document.getElementById('btn-aishoh-ai').disabled=false;
+    document.getElementById('btn-aishoh-ai').textContent='✨ AI相性鑑定文を生成する';
+  }
+}
+
+function buildAishohPrompt(resA,resB){
+  const gA=resA.gender==='M'?'男性':'女性',gB=resB.gender==='M'?'男性':'女性';
+  const dA=resA.pillars.find(p=>p.lbl==='日柱'),dB=resB.pillars.find(p=>p.lbl==='日柱');
+  const mShiA=resA.pillars.find(p=>p.lbl==='月柱').shi;
+  const mShiB=resB.pillars.find(p=>p.lbl==='月柱').shi;
+  const plA=resA.pillars.map(p=>`${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（通変:${p.lbl==='日柱'?'日主':p.ts||'—'}）`);
+  const plB=resB.pillars.map(p=>`${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（通変:${p.lbl==='日柱'?'日主':p.ts||'—'}）`);
+  const yA=getChokouYojin(resA.dKi,mShiA),yB=getChokouYojin(resB.dKi,mShiB);
+  const yAinB=yA.filter(k=>hasKanInChart(k,resB.pillars));
+  const yBinA=yB.filter(k=>hasKanInChart(k,resA.pillars));
+  const crosses=crossCombos(resA.pillars,resB.pillars);
+  const crossStrs=crosses.map(c=>`${c.lblA}(${c.kanA}${c.shiA})×${c.lblB}(${c.kanB}${c.shiB}): ${c.r.join('・')}`);
+  return `あなたは四柱推命の専門占い師です。以下の2人の命式データを分析し、相性鑑定書を日本語で作成してください。
+
+【Aさん】${resA.year}年${resA.month}月${resA.day}日生まれ（${gA}）
+${plA.join('\n')}
+
+【Bさん】${resB.year}年${resB.month}月${resB.day}日生まれ（${gB}）
+${plB.join('\n')}
+
+【日干・日支・月支の比較】
+日干: A(${KAN[dA.ki]}) × B(${KAN[dB.ki]}) → BからみたA: ${tsuhen(dB.ki,dA.ki)} / AからみたB: ${tsuhen(dA.ki,dB.ki)}
+日支: A(${SHI[dA.shi]}) × B(${SHI[dB.shi]}) → ${branchRel(dA.shi,dB.shi).join('・')||'特になし'}
+月支: A(${SHI[mShiA]}) × B(${SHI[mShiB]}) → ${branchRel(mShiA,mShiB).join('・')||'特になし'}
+
+【調候用神】
+Aの用神: ${yA.join('・')||'—'} → Bの命式に${yAinB.length?'あり('+yAinB.join('・')+')':'なし'}
+Bの用神: ${yB.join('・')||'—'} → Aの命式に${yBinA.length?'あり('+yBinA.join('・')+')':'なし'}
+
+【命式間の合・冲・刑・害】
+${crossStrs.length?crossStrs.join('\n'):'特になし'}
+
+---
+以下の4項目で相性鑑定書を作成してください（各200〜300字）：
+
+## ◆ 2人の基本的な関係性
+## ◆ 恋愛・パートナーとしての相性
+## ◆ 仕事・社会的な相性
+## ◆ 2人へのアドバイス`;
+}
+
+async function generateAishohReading(){
+  const apiKey=((document.getElementById('api-key-input')||{}).value||'').trim()||localStorage.getItem('shisui_api_key')||'';
+  if(!apiKey){alert('APIキーを入力してください');return;}
+  if(!_lastRes||!_lastResB){alert('相性鑑定を先に実行してください');return;}
+  const btn=document.getElementById('btn-aishoh-ai');
+  const box=document.getElementById('aishoh-ai-result-box');
+  btn.disabled=true;btn.textContent='生成中...';
+  box.style.display='block';
+  box.innerHTML='<p style="color:#888;font-size:.9rem">✨ AI相性鑑定文を生成しています...</p>';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,messages:[{role:'user',content:buildAishohPrompt(_lastRes,_lastResB)}]})
+    });
+    if(!resp.ok){const e=await resp.json().catch(()=>({error:{message:resp.statusText}}));throw new Error(e.error?.message||resp.statusText);}
+    const data=await resp.json();
+    const text=data.content?.[0]?.text||'（生成失敗）';
+    let html=text.replace(/## ◆ (.+)/g,'<h4>◆ $1</h4>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .split('\n\n').join('</p><p>').split('\n').join('<br>');
+    box.innerHTML='<p>'+html+'</p>';
+  }catch(e){box.innerHTML=`<p style="color:#cc2222">❌ エラー: ${e.message}</p>`;}
+  finally{btn.disabled=false;btn.textContent='✨ AI相性鑑定文を再生成する';}
 }
 
 // ===== AI鑑定文生成 =====
