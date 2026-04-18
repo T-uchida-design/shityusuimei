@@ -979,10 +979,12 @@ function calculate(){
 
 function render(res){
   _lastRes=res;
-  document.getElementById('ai-section').style.display='block';
-  document.getElementById('ai-result-box').style.display='none';
-  document.getElementById('btn-ai').textContent='✨ AI鑑定文を生成する';
-  document.getElementById('btn-ai').disabled=false;
+  if(document.getElementById('ai-section')){
+    document.getElementById('ai-section').style.display='block';
+    document.getElementById('ai-result-box').style.display='none';
+    document.getElementById('btn-ai').textContent='✨ AI鑑定文を生成する';
+    document.getElementById('btn-ai').disabled=false;
+  }
   const{pillars,kuu,year,month,day,hour,min,gender,diff,isJun,rYear,rMonth,daiun,dKi}=res;
   const hs=hour!==null?` ${hour}時${min||0}分生まれ`:'';
   const ds=diff!==0?`（地方時補正${diff>0?'+':''}${diff}分）`:'';
