@@ -974,7 +974,8 @@ function calculate(){
     render(res);
     document.getElementById('result').style.display='block';
     document.getElementById('result').scrollIntoView({behavior:'smooth'});
-  }catch(e){showErr('計算エラー: '+e.message);console.error(e);}
+  }catch(e){showErr('計算エラー: '+e.message+' | '+e.stack?.split('
+')[1]);console.error(e);}
 }
 
 function render(res){
