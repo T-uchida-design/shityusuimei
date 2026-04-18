@@ -1253,12 +1253,14 @@ function buildMiniMeishiki(pillars){
 
 function crossCombos(pA,pB){
   const res=[];
-  pA.forEach(a=>{pB.forEach(b=>{
+  pA.forEach(a=>{
+    const b=pB.find(p=>p.lbl===a.lbl);
+    if(!b)return;
     const r=[];
     KANGO.forEach(([x,y])=>{if((x===a.ki&&y===b.ki)||(y===a.ki&&x===b.ki))r.push('干合');});
     r.push(...branchRel(a.shi,b.shi));
     if(r.length)res.push({lblA:a.lbl,lblB:b.lbl,kanA:KAN[a.ki],shiA:SHI[a.shi],kanB:KAN[b.ki],shiB:SHI[b.shi],r});
-  });});
+  });
   return res;
 }
 
