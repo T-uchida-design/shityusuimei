@@ -58,6 +58,14 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
 .daiun-table th{background:#6b3a1f;color:#fff;padding:6px 8px;text-align:center}
 .daiun-table td{border:1px solid #ddd;padding:6px 8px;text-align:center}
 .daiun-table .current{background:#fff8e8;font-weight:bold}
+.tcs-ten{background:#fff0f0;color:#882222;font-weight:bold}
+.tcs-chu{background:#ffd8d8;color:#770000;font-weight:bold}
+.tcs-satsu{background:#ffbaba;color:#550000;font-weight:bold}
+.type-badge{display:inline-block;background:#4a2c0e;color:#ffd700;font-size:1rem;font-weight:bold;padding:4px 18px;border-radius:20px;letter-spacing:.1em;margin-top:4px}
+.tcs-badge{display:inline-block;border-radius:3px;padding:1px 6px;font-size:.8rem;font-weight:bold;margin-left:4px}
+.tcs-badge-ten{background:#aa2222;color:#fff}
+.tcs-badge-chu{background:#880000;color:#fff}
+.tcs-badge-sat{background:#550000;color:#fff}
 .tag-list{display:flex;flex-wrap:wrap;gap:8px}
 .tag{border-radius:4px;padding:4px 10px;font-size:.85rem}
 .tag-go{background:#e8f0e8;color:#225522}
@@ -184,6 +192,7 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
   <div class="form-row" style="margin-top:16px">
     <button class="btn-calc" onclick="calculate()">命式を計算する</button>
     <button class="btn-print" onclick="window.print()" id="btn-print" style="display:none">🖨 印刷 / PDF保存</button>
+    <button class="btn-print" onclick="openCalendar()" id="btn-cal" style="display:none;margin-left:8px">📅 運気カレンダー</button>
   </div>
   <div id="err" class="error-msg" style="display:none"></div>
 </div>
@@ -195,6 +204,7 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
     <div>
       <div class="meishiki-wrap"><table class="meishiki-table" id="ms-table"></table></div>
       <div id="kuu-bar" class="setsu-info-bar" style="color:#aa2222"></div>
+      <div id="type-bar" class="setsu-info-bar"></div>
       <div id="setsu-info" class="setsu-info-bar"></div>
     </div>
     <div>
@@ -220,14 +230,27 @@ h1{text-align:center;font-size:1.6rem;padding:20px;color:#4a2c0e;letter-spacing:
       <div style="overflow-x:auto"><table class="daiun-table" id="daiun-table"></table></div>
     </div>
     <div class="section-box">
-      <h3>年運 <span style="font-size:.8rem;font-weight:normal;color:#555">（20年）</span></h3>
+      <h3>年運 <span style="font-size:.8rem;font-weight:normal;color:#555">（12年）</span></h3>
       <div style="overflow-x:auto"><table class="daiun-table" id="nenun-table"></table></div>
     </div>
   </div>
 
   <div class="section-box" style="margin-bottom:10px">
-    <h3>納音（日柱）</h3>
-    <div id="nayin-list"></div>
+    <h3>健康運</h3>
+    <div id="kenkou-box"></div>
+  </div>
+
+  <div class="section-box" style="margin-bottom:10px">
+    <h3>環状年盤</h3>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+      <div id="nenban-svg" style="flex-shrink:0"></div>
+      <div id="nenban-info" style="flex:1;min-width:240px"></div>
+    </div>
+  </div>
+
+  <div class="section-box" style="margin-bottom:10px">
+    <h3>宇宙盤</h3>
+    <div id="uchuban-box" style="text-align:center;padding:8px 0"></div>
   </div>
 
 
@@ -306,24 +329,55 @@ const SETSU_SHI=[2,3,4,5,6,7,8,9,10,11,0,1];
 
 // 月律分野蔵干（阿部泰山式）地支index→[{max,kan},...]
 const ZMTH=[
-  [{max:10,k:'壬'},{max:99,k:'癸'}],
-  [{max:9,k:'癸'},{max:12,k:'辛'},{max:99,k:'己'}],
-  [{max:7,k:'戊'},{max:14,k:'丙'},{max:99,k:'甲'}],
-  [{max:10,k:'甲'},{max:99,k:'乙'}],
-  [{max:9,k:'乙'},{max:12,k:'癸'},{max:99,k:'戊'}],
-  [{max:7,k:'戊'},{max:14,k:'庚'},{max:99,k:'丙'}],
-  [{max:10,k:'丙'},{max:20,k:'己'},{max:99,k:'丁'}],
-  [{max:9,k:'丁'},{max:12,k:'乙'},{max:99,k:'己'}],
-  [{max:7,k:'戊'},{max:14,k:'壬'},{max:99,k:'庚'}],
-  [{max:10,k:'庚'},{max:99,k:'辛'}],
-  [{max:9,k:'辛'},{max:12,k:'丁'},{max:99,k:'戊'}],
-  [{max:7,k:'戊'},{max:14,k:'甲'},{max:99,k:'壬'}]
+  [{max:99,k:'癸'}],                                   // 子(0)  すべて癸
+  [{max:9,k:'癸'},{max:12,k:'辛'},{max:99,k:'己'}],   // 丑(1)  9日まで癸→12日まで辛→以降己
+  [{max:7,k:'戊'},{max:14,k:'丙'},{max:99,k:'甲'}],   // 寅(2)  7日まで戊→14日まで丙→以降甲
+  [{max:99,k:'乙'}],                                   // 卯(3)  すべて乙
+  [{max:9,k:'乙'},{max:12,k:'癸'},{max:99,k:'戊'}],   // 辰(4)  9日まで乙→12日まで癸→以降戊
+  [{max:5,k:'戊'},{max:14,k:'庚'},{max:99,k:'丙'}],   // 巳(5)  5日まで戊→14日まで庚→以降丙
+  [{max:19,k:'己'},{max:99,k:'丁'}],                   // 午(6)  19日まで己→以降丁
+  [{max:9,k:'丁'},{max:12,k:'乙'},{max:99,k:'己'}],   // 未(7)  9日まで丁→12日まで乙→以降己
+  [{max:10,k:'戊'},{max:13,k:'壬'},{max:99,k:'庚'}],  // 申(8)  10日まで戊→13日まで壬→以降庚
+  [{max:99,k:'辛'}],                                   // 酉(9)  すべて辛
+  [{max:9,k:'辛'},{max:12,k:'丁'},{max:99,k:'戊'}],   // 戌(10) 9日まで辛→12日まで丁→以降戊
+  [{max:12,k:'甲'},{max:99,k:'壬'}]                   // 亥(11) 12日まで甲→以降壬
 ];
 // 地支固有蔵干（年・日・時柱の主蔵干）
 const ZFIX=['癸','己','甲','乙','戊','丙','丁','己','庚','辛','戊','壬'];
 
 // 空亡表（六十甲子index//10→[地支idx,地支idx]）
 const KUU=[[10,11],[8,9],[6,7],[4,5],[2,3],[0,1]];
+
+// 12運気サイクル（日支を起点にオフセット0〜11）
+const UNKI_NAMES=[
+  '夜明けの時期','進化の時期','決意の時期','休息の時期',
+  '青春の時期','空転の時期','飛躍の時期','絶好調の時期',
+  '頂点の時期',
+  '忍耐の時期（天中殺 入り）','陰徳の時期（天中殺 核）','修行の時期（天中殺 残）'
+];
+// 天中殺パターン名（kuu[0]の地支から決定）
+const TCS_PAIRNAME={0:'子丑',1:'子丑',2:'寅卯',3:'寅卯',4:'辰巳',5:'辰巳',6:'午未',7:'午未',8:'申酉',9:'申酉',10:'戌亥',11:'戌亥'};
+
+// 12タイプ（天中殺パターン × 陰陽）
+// key: 'パターン名_0(陽)/1(陰)'
+const TYPE_NAME={
+  '戌亥_0':'ドクタータイプ','戌亥_1':'マスタータイプ',
+  '申酉_0':'マネージャータイプ','申酉_1':'プランナータイプ',
+  '午未_0':'プロデューサータイプ','午未_1':'ディレクタータイプ',
+  '辰巳_0':'アクタータイプ','辰巳_1':'アクトレスタイプ',
+  '寅卯_0':'プリンスタイプ','寅卯_1':'プリンセスタイプ',
+  '子丑_0':'キングタイプ','子丑_1':'クイーンタイプ',
+};
+
+// 天中殺の3年（天・中・殺）の地支indexを返す
+function getTcsThreeYears(dKi,kuu){
+  const isYo=dKi%2===0; // 陽干
+  if(isYo){
+    return [(kuu[0]-1+12)%12, kuu[0], kuu[1]]; // 天=TCS前,中=TCS1,殺=TCS2
+  } else {
+    return [kuu[0], kuu[1], (kuu[1]+1)%12];    // 天=TCS1,中=TCS2,殺=TCS後
+  }
+}
 
 // 五行剋の対象
 const KOKU=[2,3,4,0,1];
@@ -461,7 +515,7 @@ function calc(year,month,day,hour,min,gender,diff){
   const daiun=[];
   // 初期運（0歳〜立運年齢）= 月柱の干支
   daiun.push({age:0,endAge:rYear,ks:mKsIdx,ki:mKsIdx%10,shi:mKsIdx%12,ts:tsuhen(dKi,mKsIdx%10),ju:juniun(dKi,mKsIdx%12)});
-  for(let i=1;i<=8;i++){
+  for(let i=1;i<=11;i++){
     const ks=((mKsIdx+(isJun?i:-i))%60+60)%60;
     daiun.push({age:rYear+(i-1)*10,endAge:rYear+i*10,ks,ki:ks%10,shi:ks%12,ts:tsuhen(dKi,ks%10),ju:juniun(dKi,ks%12)});
   }
@@ -476,9 +530,10 @@ const SHI_GOGY=[4,2,0,0,2,1,1,2,3,3,2,4];
 // 五行バランス計算: 天干1点, 月支3点, 他地支1点
 function calcGogyo(res){
   const{pillars,dKi}=res;
+  const calcP=pillars.filter(p=>p.lbl!=='時柱'); // 時柱は鑑定に使用しない
   const dGogy=gogy(dKi);
   const cnt=[0,0,0,0,0];
-  pillars.forEach(p=>{
+  calcP.forEach(p=>{
     cnt[gogy(p.ki)]+=1;                           // 天干1点
     cnt[SHI_GOGY[p.shi]]+=(p.lbl==='月柱'?3:1);  // 月支3点,他1点
   });
@@ -488,6 +543,363 @@ function calcGogyo(res){
   const leakScore=cnt[(dGogy+1)%5]+cnt[(dGogy+2)%5]+cnt[(dGogy+3)%5];
   const shinoh=selfScore>leakScore?'身強':selfScore<leakScore?'身弱':'身中';
   return{cnt,dGogy,selfScore,leakScore,shinoh};
+}
+
+// ============================================================
+// 宇宙盤 SVG 生成
+// 六十甲子を円盤に配置し年柱・月柱・日柱の三角形を描く
+// ゾーン: 大地(1-15)・風(16-30)・太陽(31-45)・月(46-60)
+// ============================================================
+function renderUchuBan(res){
+  const{pillars}=res;
+  const yP=pillars.find(p=>p.lbl==='年柱');
+  const mP=pillars.find(p=>p.lbl==='月柱');
+  const dP=pillars.find(p=>p.lbl==='日柱');
+  function ksIdx(ki,shi){for(let i=0;i<60;i++)if(i%10===ki&&i%12===shi)return i;return 0;}
+  const yIdx=ksIdx(yP.ki,yP.shi);
+  const mIdx=ksIdx(mP.ki,mP.shi);
+  const dIdx=ksIdx(dP.ki,dP.shi);
+
+  const W=500,H=500,CX=250,CY=250;
+  const R_out=225;
+  const R_lbl=195;
+  const R_dot=170;
+  const R_in=74;
+
+  // ゾーン：連番で決定（1-15=大地, 16-30=風, 31-45=太陽, 46-60=月）
+  const ZONES=[
+    {name:'大地',color:'#8b6914',fill:'#fff8dc'},
+    {name:'風',  color:'#1a66bb',fill:'#ddeeff'},
+    {name:'太陽',color:'#cc4400',fill:'#ffe8d0'},
+    {name:'月',  color:'#663399',fill:'#eeddf5'},
+  ];
+  // idx 0-14=大地, 15-29=風, 30-44=太陽, 45-59=月
+  function zoneOf(ksI){
+    return ksI<=14?0:ksI<=29?1:ksI<=44?2:3;
+  }
+  const PDOTS=[
+    {idx:yIdx,lbl:'年',sub:KANSHI60[yIdx],color:'#cc3322'},
+    {idx:mIdx,lbl:'月',sub:KANSHI60[mIdx],color:'#1a66bb'},
+    {idx:dIdx,lbl:'日',sub:KANSHI60[dIdx],color:'#2a7a3a'},
+  ];
+
+  function aDeg(i){return -90+(i/60)*360;}
+  function pt(d,r){const a=d*Math.PI/180;return[CX+r*Math.cos(a),CY+r*Math.sin(a)];}
+
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%;height:auto;font-family:serif">`;
+
+  // 背景円
+  s+=`<circle cx="${CX}" cy="${CY}" r="${R_out}" fill="#f9f5ee" stroke="#bbb" stroke-width="1"/>`;
+
+  // ルーレット式：60個のアークセグメントを地支ゾーンで塗り分け
+  const GAP=0.4; // セグメント間の隙間(deg)
+  for(let i=0;i<60;i++){
+    const a1=-90+(i/60)*360+GAP;
+    const a2=-90+((i+1)/60)*360-GAP;
+    const z=ZONES[zoneOf(i)];
+    const [ox1,oy1]=pt(a1,R_out),[ox2,oy2]=pt(a2,R_out);
+    const [ix1,iy1]=pt(a1,R_in), [ix2,iy2]=pt(a2,R_in);
+    s+=`<path d="M${f(ox1)},${f(oy1)} A${R_out},${R_out},0,0,1,${f(ox2)},${f(oy2)} L${f(ix2)},${f(iy2)} A${R_in},${R_in},0,0,0,${f(ix1)},${f(iy1)} Z" fill="${z.fill}" stroke="${z.color}" stroke-width="0.8"/>`;
+  }
+
+  // 干支ラベル（各セグメント中央に放射状）
+  for(let i=0;i<60;i++){
+    const d=aDeg(i)+(360/60/2); // セグメント中央角
+    const [lx,ly]=pt(d,R_lbl);
+    const zc=ZONES[zoneOf(i)].color;
+    let rot=d+90;
+    const nr=((rot%360)+360)%360;
+    if(nr>90&&nr<270)rot+=180;
+    s+=`<text x="${f(lx)}" y="${f(ly)}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="${zc}" font-weight="bold" transform="rotate(${f(rot)},${f(lx)},${f(ly)})">${KANSHI60[i]}</text>`;
+  }
+
+  // ゾーン名ラベル（各ゾーン15個の中央角に配置）
+  // 大地:idx0-14→中心7.5→aDeg(7.5)=-45°(右上)
+  // 風:idx15-29→中心22.5→aDeg(22.5)=45°(右下)
+  // 太陽:idx30-44→中心37.5→aDeg(37.5)=135°(左下)
+  // 月:idx45-59→中心52.5→aDeg(52.5)=225°(左上)
+  const ZONE_LBL_R=122;
+  [[7.5,0],[22.5,1],[37.5,2],[52.5,3]].forEach(([ci,zi])=>{
+    const d=aDeg(ci);
+    const [nx,ny]=pt(d,ZONE_LBL_R);
+    const z=ZONES[zi];
+    s+=`<text x="${f(nx)}" y="${f(ny)}" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="bold" fill="${z.color}">${z.name}</text>`;
+  });
+
+  // 三角形
+  const [yx,yy]=pt(aDeg(yIdx)+3,R_dot);
+  const [mx2,my2]=pt(aDeg(mIdx)+3,R_dot);
+  const [dx2,dy2]=pt(aDeg(dIdx)+3,R_dot);
+  s+=`<polygon points="${f(yx)},${f(yy)} ${f(mx2)},${f(my2)} ${f(dx2)},${f(dy2)}" fill="rgba(80,80,200,0.13)" stroke="#5544aa" stroke-width="2.5" stroke-linejoin="round"/>`;
+
+  // 柱マーカー
+  PDOTS.forEach(p=>{
+    const [px,py]=pt(aDeg(p.idx)+3,R_dot);
+    s+=`<circle cx="${f(px)}" cy="${f(py)}" r="18" fill="${p.color}" stroke="white" stroke-width="2.5"/>`;
+    s+=`<text x="${f(px)}" y="${f(py-5)}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="white" font-weight="bold">${p.lbl}</text>`;
+    s+=`<text x="${f(px)}" y="${f(py+8)}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="white">${p.sub}</text>`;
+  });
+
+  // 中心円
+  s+=`<circle cx="${CX}" cy="${CY}" r="${R_in}" fill="white" stroke="#c8a96e" stroke-width="2"/>`;
+  s+=`<text x="${CX}" y="${CY-22}" text-anchor="middle" font-size="15" font-weight="bold" fill="#4a2c0e">宇宙盤</text>`;
+  s+=`<text x="${CX}" y="${CY+0}" text-anchor="middle" font-size="11" fill="#cc3322">年 ${KANSHI60[yIdx]}</text>`;
+  s+=`<text x="${CX}" y="${CY+16}" text-anchor="middle" font-size="11" fill="#1a66bb">月 ${KANSHI60[mIdx]}</text>`;
+  s+=`<text x="${CX}" y="${CY+32}" text-anchor="middle" font-size="11" fill="#2a7a3a">日 ${KANSHI60[dIdx]}</text>`;
+
+  s+=`</svg>`;
+  return s;
+}
+function f(n){return typeof n==='number'?n.toFixed(1):n;}
+
+// ============================================================
+// 環状年盤 SVG 生成
+// 60年の年盤・命式各柱との関係を色分け表示
+// ============================================================
+function renderNenban(res){
+  const{pillars,kuu,year,daiun}=res;
+  const yP=pillars.find(p=>p.lbl==='年柱');
+  const mP=pillars.find(p=>p.lbl==='月柱');
+  const dP=pillars.find(p=>p.lbl==='日柱');
+
+  function nbKs(ki,shi){for(let i=0;i<60;i++)if(i%10===ki&&i%12===shi)return i;return 0;}
+  const yKs=nbKs(yP.ki,yP.shi);
+  const dKs=nbKs(dP.ki,dP.shi);
+  // 関係性は日干支のみを基準にする
+  const dp={ki:dP.ki,shi:dP.shi,ks:dKs};
+
+  // ──────── 関係判定（日干支との関係のみ） ────────
+  function isKangoN(k1,k2){return Math.abs(k1-k2)===5;}
+  const SHIGO_N=[[0,1],[2,11],[3,10],[4,9],[5,8],[6,7]];
+  function isShigoN(s1,s2){return SHIGO_N.some(p=>(p[0]===s1&&p[1]===s2)||(p[1]===s1&&p[0]===s2));}
+  function isChuN(s1,s2){return Math.abs(s1-s2)===6;}
+  // 天剋：k1(年干)がk2(日干)を剋す場合のみ（片方向）
+  function isTenkouN(k1,k2){return KOKU[Math.floor(k1/2)]===Math.floor(k2/2);}
+  const SANGO_N=[[8,0,4],[5,9,1],[2,6,10],[11,3,7]];
+  // 宿命大半会：干が同じ（天干一致）かつ支が半会（同じ三合グループの2支、かつ旺支を含む）
+  // 旺支＝各三合の中央支: 申子辰→子(0), 巳酉丑→酉(9), 寅午戌→午(6), 亥卯未→卯(3)
+  function isDaihangeN(yk,ys){
+    return yk===dp.ki && SANGO_N.some(g=>
+      g.includes(ys)&&g.includes(dp.shi)&&ys!==dp.shi&&
+      (ys===g[1]||dp.shi===g[1])
+    );
+  }
+  // 納音：干が同じ＋支が冲（差が6）→ 60年に1度
+  function isSameNayinN(ks1,ks2){return (ks1%10)===(ks2%10)&&Math.abs((ks1%12)-(ks2%12))===6;}
+
+  const REL=[
+    {id:'tenkoku',label:'天剋地冲',  short:'天剋',desc:'60年で1番悪い年、リセットの1年'},
+    {id:'ritsuin', label:'律音',     short:'律音',desc:'60年に1度の良い年'},
+    {id:'daihange',label:'宿命大半会',short:'大半',desc:'大活躍できる年'},
+    {id:'tokugo',  label:'天地徳合', short:'徳合',desc:'良いことも悪いことも多い波乱万丈な一年、本当に大事なものがわかる'},
+    {id:'kango',   label:'干合',     short:'干合',desc:'努力で飛躍できる年、離れる現象も起きる'},
+    {id:'shigo',   label:'支合',     short:'支合',desc:'悪い運気から守られる年'},
+    {id:'nayin',   label:'納音',     short:'納音',desc:'物事が白紙に戻りやすい不安定な年'},
+  ];
+  const relMap={};REL.forEach(r=>{relMap[r.id]=r;});
+
+  function getRelN(ks){
+    const yk=ks%10,ys=ks%12;
+    if(isTenkouN(yk,dp.ki)&&isChuN(ys,dp.shi))return'tenkoku';
+    if(ks===dp.ks)return'ritsuin';
+    if(isDaihangeN(yk,ys))return'daihange';
+    if(isKangoN(yk,dp.ki)&&isShigoN(ys,dp.shi))return'tokugo';
+    if(isKangoN(yk,dp.ki))return'kango';
+    if(isShigoN(ys,dp.shi))return'shigo';
+    if(isSameNayinN(ks,dp.ks))return'nayin';
+    return null;
+  }
+
+  // ──────── TCS周期マーク ────────
+  const nbTcsThree=getTcsThreeYears(dP.ki,kuu);
+  const [nbTenShi,nbChuShi,nbSatsuShi]=nbTcsThree;
+  const nbStartShi=(nbTenShi-9+12)%12;
+  const UNKI_MARK_N=['〇','〇','〇','×','◎','××','◎◎','◎◎','◎◎','','',''];
+  function getTcsMarkN(yrKs){
+    const ys=yrKs%12;
+    if(ys===nbTenShi)return'天';
+    if(ys===nbChuShi)return'中';
+    if(ys===nbSatsuShi)return'殺';
+    return UNKI_MARK_N[(ys-nbStartShi+12)%12];
+  }
+
+  // ──────── 大運天中殺 期間を先に計算 ────────
+  const _tcsDaiun=daiun.filter(d=>d.shi===kuu[0]||d.shi===kuu[1]);
+  let tcsStartAge=-1,tcsEndAge=-1;
+  if(_tcsDaiun.length>0){
+    tcsStartAge=Math.min(..._tcsDaiun.map(d=>d.age));
+    tcsEndAge=Math.max(..._tcsDaiun.map(d=>d.endAge));
+  }
+  function tcsSegFill(i,isCur){
+    if(tcsStartAge<0||i<tcsStartAge||i>=tcsEndAge)return isCur?'#d8d8d8':'#ffffff';
+    if(i<tcsStartAge+5||i>=tcsEndAge-5)return'#c0c0c0'; // 入り・出の5年
+    return'#999999'; // 天中殺本体10年
+  }
+  function tcsSegStroke(i){
+    if(tcsStartAge<0||i<tcsStartAge||i>=tcsEndAge)return['#aaa',0.5];
+    return['#555',1.0];
+  }
+
+  // ──────── SVG ────────
+  const W=520,H=520,CX=260,CY=260;
+  const R_out=228,R_age=215,R_mid=200,R_ks=190,R_rel=175,R_tcs=158,R_in=74,GAP=0.4;
+  const cyear=new Date().getFullYear();
+  const cage=cyear-year;
+  const curAge=((cage%60)+60)%60;
+
+  function aDN(i){return -90+(i/60)*360;}
+  function ptN(d,r){const a=d*Math.PI/180;return[CX+r*Math.cos(a),CY+r*Math.sin(a)];}
+
+  let svg=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%;height:auto;font-family:serif">`;
+  svg+=`<circle cx="${CX}" cy="${CY}" r="${R_out}" fill="#f9f5ee" stroke="#bbb" stroke-width="1"/>`;
+
+  for(let i=0;i<60;i++){
+    const yrKs=(yKs+i)%60;
+    const relId=getRelN(yrKs);
+    const rel=relId?relMap[relId]:null;
+    const isCur=(i===curAge);
+    const fill=tcsSegFill(i,isCur);
+    const[sc,sw]=tcsSegStroke(i);
+
+    const a1=aDN(i)+GAP, a2=aDN(i+1)-GAP;
+    const [ox1,oy1]=ptN(a1,R_out),[ox2,oy2]=ptN(a2,R_out);
+    const [ix1,iy1]=ptN(a1,R_in), [ix2,iy2]=ptN(a2,R_in);
+    svg+=`<path d="M${f(ox1)},${f(oy1)} A${R_out},${R_out},0,0,1,${f(ox2)},${f(oy2)} L${f(ix2)},${f(iy2)} A${R_in},${R_in},0,0,0,${f(ix1)},${f(iy1)} Z" fill="${fill}" stroke="${sc}" stroke-width="${sw}"/>`;
+
+    const dM=aDN(i)+3;
+    let rot=dM+90;
+    const nr=((rot%360)+360)%360;
+    if(nr>90&&nr<270)rot+=180;
+
+    // 外帯：年齢（現在年は太字）
+    const[ax,ay]=ptN(dM,R_age);
+    svg+=`<text x="${f(ax)}" y="${f(ay)}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="#333" font-weight="${isCur?'bold':'normal'}" transform="rotate(${f(rot)},${f(ax)},${f(ay)})">${i}</text>`;
+    // 内帯：干支（関係ある年は太字）
+    const[kx,ky]=ptN(dM,R_ks);
+    svg+=`<text x="${f(kx)}" y="${f(ky)}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#222" font-weight="${rel||isCur?'bold':'normal'}" transform="rotate(${f(rot)},${f(kx)},${f(ky)})">${KANSHI60[yrKs]}</text>`;
+    // 関係性略称（干支の内側・黒太字）
+    if(rel){
+      const[rx,ry]=ptN(dM,R_rel);
+      svg+=`<text x="${f(rx)}" y="${f(ry)}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="#111" font-weight="bold" transform="rotate(${f(rot)},${f(rx)},${f(ry)})">${rel.short}</text>`;
+    }
+    // TCS周期マーク
+    const tcsMark=getTcsMarkN(yrKs);
+    if(tcsMark){
+      const isTcs=(tcsMark==='天'||tcsMark==='中'||tcsMark==='殺');
+      const tcsColor=isTcs?'#cc0000':'#333';
+      const tcsBold=isTcs?'bold':(tcsMark==='◎'||tcsMark==='◎◎')?'bold':'normal';
+      const[tx,ty]=ptN(dM,R_tcs);
+      svg+=`<text x="${f(tx)}" y="${f(ty)}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${tcsColor}" font-weight="${tcsBold}" transform="rotate(${f(rot)},${f(tx)},${f(ty)})">${tcsMark}</text>`;
+    }
+  }
+
+  svg+=`<circle cx="${CX}" cy="${CY}" r="${R_mid}" fill="none" stroke="#bbb" stroke-width="0.8"/>`;
+  svg+=`<circle cx="${CX}" cy="${CY}" r="${R_tcs+10}" fill="none" stroke="#ddd" stroke-width="0.6" stroke-dasharray="2,2"/>`;
+  // 大運天中殺ブロック強調アーク（外縁に太い線）
+  if(tcsStartAge>=0){
+    const R_mark=R_out+4;
+    const aS=aDN(tcsStartAge), aE=aDN(tcsEndAge);
+    const [mx1,my1]=ptN(aS,R_mark),[mx2,my2]=ptN(aE,R_mark);
+    const large=tcsEndAge-tcsStartAge>30?1:0;
+    svg+=`<path d="M${f(mx1)},${f(my1)} A${R_mark},${R_mark},0,${large},1,${f(mx2)},${f(my2)}" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round"/>`;
+    // 入り・出ラベル
+    const aMid=aDN(tcsStartAge+10);
+    const[lx,ly]=ptN(aMid,R_out+14);
+    svg+=`<text x="${f(lx)}" y="${f(ly)}" text-anchor="middle" dominant-baseline="middle" font-size="7" fill="#333" font-weight="bold">大運天中殺</text>`;
+  }
+  svg+=`<circle cx="${CX}" cy="${CY}" r="${R_in}" fill="white" stroke="#c8a96e" stroke-width="2"/>`;
+  svg+=`<text x="${CX}" y="${CY-22}" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a2c0e">環状年盤</text>`;
+  svg+=`<text x="${CX}" y="${CY-5}" text-anchor="middle" font-size="10" fill="#555">${year}年生まれ</text>`;
+  svg+=`<text x="${CX}" y="${CY+11}" text-anchor="middle" font-size="11" fill="#aa2222">現在 ${cage}歳</text>`;
+  svg+=`<text x="${CX}" y="${CY+27}" text-anchor="middle" font-size="9" fill="#888">(${cyear}年)</text>`;
+  svg+=`</svg>`;
+
+  // ──────── 凡例＋大運天中殺 ────────
+  let info=`<div style="font-size:.85rem;line-height:1.9">`;
+  // TCS周期マーク凡例
+  info+=`<div style="font-weight:bold;color:#cc0000;margin-bottom:6px;border-left:3px solid #cc0000;padding-left:8px;font-size:.9rem">天中殺12周期マーク</div>`;
+  const TCS_LEGEND=[
+    {mark:'天',desc:'天中殺（入り年）'},
+    {mark:'中',desc:'天中殺（中間年）'},
+    {mark:'殺',desc:'天中殺（出る年）'},
+    {mark:'◎◎',desc:'最も運気が高い年'},
+    {mark:'◎',desc:'運気が高い年'},
+    {mark:'〇',desc:'普通の年'},
+    {mark:'×',desc:'注意が必要な年'},
+  ];
+  info+=`<div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-bottom:12px">`;
+  TCS_LEGEND.forEach(t=>{
+    const isT=(t.mark==='天'||t.mark==='中'||t.mark==='殺');
+    info+=`<span><b style="color:${isT?'#cc0000':'#333'}">${t.mark}</b>：${t.desc}</span>`;
+  });
+  info+=`</div>`;
+  // 大運天中殺 塗り分け凡例
+  if(tcsStartAge>=0){
+    info+=`<div style="margin-bottom:12px">`;
+    info+=`<div style="font-weight:bold;color:#333;margin-bottom:5px;border-left:3px solid #555;padding-left:8px;font-size:.9rem">円盤の塗り分け</div>`;
+    info+=`<div style="display:flex;flex-direction:column;gap:3px;font-size:.82rem">`;
+    info+=`<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:18px;height:14px;background:#999;border:1px solid #555;flex-shrink:0"></span>天中殺本体10年（濃いグレー）</div>`;
+    info+=`<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:18px;height:14px;background:#c0c0c0;border:1px solid #555;flex-shrink:0"></span>入りの5年・出の5年（薄いグレー）</div>`;
+    info+=`<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-block;width:18px;height:14px;background:#fff;border:1px solid #aaa;flex-shrink:0"></span>通常期間</div>`;
+    info+=`</div></div>`;
+  }
+  info+=`<div style="font-weight:bold;color:#4a2c0e;margin-bottom:8px;border-left:3px solid #c8a96e;padding-left:8px;font-size:.9rem">関係性の説明</div>`;
+  REL.forEach(r=>{
+    info+=`<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:5px">
+      <span style="display:inline-block;min-width:28px;font-size:.8rem;font-weight:bold;color:#222;flex-shrink:0">${r.short}</span>
+      <div><b>${r.label}</b>：${r.desc}</div></div>`;
+  });
+
+  // 大運天中殺 期間
+  // 天中殺2地支 = 大運2期(各10年) = 合計20年が大運天中殺
+  // 入りの5年・出の5年はその20年のうちの最初と最後
+  const tcsDaiun=_tcsDaiun;
+  if(tcsDaiun.length>0){
+    info+=`<div style="margin-top:14px;border-top:1px solid #c8a96e;padding-top:10px">`;
+    info+=`<div style="font-weight:bold;color:#222;margin-bottom:8px;border-left:3px solid #555;padding-left:8px;font-size:.9rem">大運天中殺</div>`;
+    // 2期をまとめて20年1ブロックで表示
+    const sa=Math.min(...tcsDaiun.map(d=>d.age));
+    const ea=Math.max(...tcsDaiun.map(d=>d.endAge));
+    const sy=year+sa, ey=year+ea-1;
+    const ks1=tcsDaiun.find(d=>d.age===sa);
+    const ks2=tcsDaiun.find(d=>d.age!==sa);
+    const ksLabel=ks2?`${KANSHI60[ks1.ks]}大運・${KANSHI60[ks2.ks]}大運`:`${KANSHI60[ks1.ks]}大運`;
+    // 入りの5年：20年期間の最初5年
+    const inStartA=sa,   inEndA=sa+4;
+    const inStartY=sy,   inEndY=year+inEndA;
+    // 出の5年：20年期間の最後5年
+    const outStartA=ea-5, outEndA=ea-1;
+    const outStartY=year+outStartA, outEndY=ey;
+    info+=`<div style="border:1px solid #aaa;border-radius:4px;padding:8px 10px;margin-bottom:8px">`;
+    info+=`<div style="font-weight:bold;margin-bottom:4px">${ksLabel}</div>`;
+    info+=`<div style="margin-bottom:6px">${sa}歳〜${ea-1}歳（${sy}年〜${ey}年）計20年</div>`;
+    info+=`<div style="padding:4px 8px;border-radius:3px;border:1px solid #bbb;margin-bottom:4px">`;
+    info+=`入りの5年：${inStartY}年〜${inEndY}年（${inStartA}歳〜${inEndA}歳）</div>`;
+    info+=`<div style="padding:4px 8px;border-radius:3px;border:1px solid #bbb">`;
+    info+=`出の5年：${outStartY}年〜${outEndY}年（${outStartA}歳〜${outEndA}歳）</div>`;
+    info+=`</div>`;
+    info+=`</div>`;
+  }
+  info+=`</div>`;
+  return{svg,info};
+}
+
+// 健康運計算
+// 五行点数→各五行の健康判定マークを返す
+// score=0:×, score=1,2:〇, score≥3:自身が△かつ剋する五行を〇→△,△→×に変更
+function calcKenkou(cnt){
+  const KENKOU_PARTS=['肝臓・筋肉・神経','心臓・血液・血圧・目・鼻・耳','消化器・皮膚','呼吸器・肺臓・骨・歯','腎臓・泌尿器・生殖器'];
+  // 木→土,火→金,土→水,金→木,水→火
+  const marks=cnt.map(s=>s===0?'×':'〇');
+  for(let i=0;i<5;i++){
+    if(cnt[i]>=3){
+      marks[i]='△'; // 多すぎても中庸を外れるため△
+      const t=KOKU[i];
+      if(marks[t]==='〇')marks[t]='△';
+      else if(marks[t]==='△')marks[t]='×';
+    }
+  }
+  return{marks,KENKOU_PARTS};
 }
 
 // SVG円形チャート描画（輪郭は円、5本スポーク、2色セクター、区切り線）
@@ -1058,6 +1470,7 @@ function render(res){
   const ageSpan=`<span class="age-badge">現在 ${cage}歳前後</span>`;
   document.getElementById('res-title').innerHTML=`${year}年${month}月${day}日${hs}　${gender==='M'?'男性':'女性'}　命式${ds}　${ageSpan}`;
   document.getElementById('btn-print').style.display='';
+  document.getElementById('btn-cal').style.display='';
 
   // 命式テーブル（表示は右から左: 時柱→日柱→月柱→年柱）
   const dispPillars=[...pillars].reverse();
@@ -1122,10 +1535,43 @@ function render(res){
   th+=`</tbody>`;
   document.getElementById('ms-table').innerHTML=th;
 
-  // 空亡を表の外に表示
-  const kuuPillars=pillars.filter(p=>p.shi===kuu[0]||p.shi===kuu[1]).map(p=>p.lbl);
-  const kuuStr=kuuPillars.length?`空亡（${SHI[kuu[0]]}・${SHI[kuu[1]]}）: ${kuuPillars.join('・')}が空亡`:`空亡（${SHI[kuu[0]]}・${SHI[kuu[1]]}）: 命式中なし`;
+  // 天中殺を表の外に表示
+  const tcsPair=TCS_PAIRNAME[kuu[0]]+'天中殺';
+  const tcsThree=getTcsThreeYears(dKi,kuu);
+
+  // 生年・生月天中殺：自分のTCSペアに年柱/月柱の地支が入るか
+  const yPillar=pillars.find(p=>p.lbl==='年柱');
+  const mPillar=pillars.find(p=>p.lbl==='月柱');
+  const dPillar=pillars.find(p=>p.lbl==='日柱');
+  const labels=[];
+  if(yPillar&&(yPillar.shi===kuu[0]||yPillar.shi===kuu[1]))labels.push('生年天中殺');
+  if(mPillar&&(mPillar.shi===kuu[0]||mPillar.shi===kuu[1]))labels.push('生月天中殺');
+
+  // 生日天中殺：年柱干支のTCSペアに日柱の地支が入るか
+  let seiNichi='';
+  if(yPillar&&dPillar){
+    // 年柱の六十甲子indexからTCSを求める
+    let yKsIdx=0;
+    for(let i=0;i<60;i++){if(i%10===yPillar.ki&&i%12===yPillar.shi){yKsIdx=i;break;}}
+    const yKuu=KUU[Math.floor(yKsIdx/10)];
+    const yTcsPairName=TCS_PAIRNAME[yKuu[0]]+'天中殺';
+    if(dPillar.shi===yKuu[0]||dPillar.shi===yKuu[1]){
+      labels.push('生日天中殺');
+      seiNichi=`　（年柱が${yTcsPairName}・日支が中殺）`;
+    }
+  }
+
+  let kuuStr=`天中殺：${tcsPair}`;
+  if(labels.length)kuuStr+=`　▶ ${labels.join('・')}${seiNichi}`;
+  else kuuStr+=`（命式内なし）`;
   document.getElementById('kuu-bar').textContent=kuuStr;
+
+  // タイプ診断
+  const isYoDan=dKi%2===0;
+  const typeKey=TCS_PAIRNAME[kuu[0]]+'_'+(isYoDan?'0':'1');
+  const typeName=TYPE_NAME[typeKey]||'—';
+  document.getElementById('type-bar').innerHTML=
+    `<span class="type-badge">✦ ${typeName}</span>`;
 
   // 節入り情報
   const sd=res.si.setsuDt;
@@ -1159,31 +1605,55 @@ function render(res){
   dt+=`</tbody>`;
   document.getElementById('daiun-table').innerHTML=dt;
 
-  // 年運（前後含め20年表示）
-  let nt=`<thead><tr><th>西暦</th><th>年齢</th><th>干支</th><th>天干通変</th><th>十二運</th><th class="rel-day">日柱との関係</th><th class="rel-mon">月柱との関係</th></tr></thead><tbody>`;
-  for(let ny=cyear-3;ny<=cyear+16;ny++){
+  // 年運（天中殺12周期・12年表示）
+  // 天・中・殺の地支
+  const [tenShi,chuShi,satsuShi]=tcsThree;
+  // 12周期の起点：天中殺「天」が必ず位置10（忍耐）になるよう逆算
+  const startShi=(tenShi-9+12)%12;
+  let nt=`<thead><tr><th>西暦</th><th>年齢</th><th>干支</th><th>運気（12周期）</th><th>天中殺</th></tr></thead><tbody>`;
+  for(let ny=cyear;ny<=cyear+11;ny++){
     const nKs=((ny-1984)%60+60)%60;
     const nKi=nKs%10,nShi=nKs%12;
-    const nTs=tsuhen(dKi,nKi);
-    const nJu=juniun(dKi,nShi);
     const nAge=ny-year;
-    const cur=ny===cyear?' class="current"':'';
-    const dr=externalCombos(nKi,nShi,dayP.ki,dayP.shi)||'—';
-    const mr=externalCombos(nKi,nShi,monP.ki,monP.shi)||'—';
-    nt+=`<tr${cur}><td>${ny}年</td><td>${nAge}歳</td><td>${KANSHI60[nKs]}</td><td>${nTs}</td><td>${nJu}</td><td class="rel-day">${dr}</td><td class="rel-mon">${mr}</td></tr>`;
+    const offset=(nShi-startShi+12)%12;
+    const unkiName=UNKI_NAMES[offset];
+    // 天中殺列マーク
+    const UNKI_MARK=['〇','〇','〇','×','◎','××','◎◎','◎◎','◎◎','','',''];
+    let tcsMark='',rowCls='';
+    if(nShi===tenShi){tcsMark='<span class="tcs-badge tcs-badge-ten">天</span>';rowCls=' class="tcs-ten"';}
+    else if(nShi===chuShi){tcsMark='<span class="tcs-badge tcs-badge-chu">中</span>';rowCls=' class="tcs-chu"';}
+    else if(nShi===satsuShi){tcsMark='<span class="tcs-badge tcs-badge-sat">殺</span>';rowCls=' class="tcs-satsu"';}
+    else{tcsMark=UNKI_MARK[offset];}
+    // 現在年は current スタイル優先
+    if(ny===cyear)rowCls=' class="current"';
+    nt+=`<tr${rowCls}><td>${ny}年</td><td>${nAge}歳</td><td>${KANSHI60[nKs]}</td><td>${unkiName}</td><td>${tcsMark}</td></tr>`;
   }
   nt+=`</tbody>`;
   document.getElementById('nenun-table').innerHTML=nt;
 
-
-  // 納音（日柱のみ）
-  const dp=pillars.find(p=>p.lbl==='日柱');
-  let dKsIdx2=0;for(let i=0;i<60;i++)if(i%10===dp.ki&&i%12===dp.shi){dKsIdx2=i;break;}
-  document.getElementById('nayin-list').innerHTML=
-    `<div class="nayin-row" style="font-size:1rem"><b>${KANSHI60[dKsIdx2]}</b> → <b style="color:#6b3a1f;font-size:1.1rem">${getNayin(dKsIdx2)}</b></div>`;
+  // 健康運
+  {
+    const{cnt}=calcGogyo(res);
+    const{marks,KENKOU_PARTS}=calcKenkou(cnt);
+    let kh=`<table class="yojin-table" style="margin:0;width:100%"><thead><tr><th>五行</th><th>点数</th><th>判定</th><th>関連部位</th></tr></thead><tbody>`;
+    for(let i=0;i<5;i++){
+      const mc=marks[i]==='〇'?'#225522':marks[i]==='△'?'#886622':'#882222';
+      kh+=`<tr><td style="font-weight:bold;color:${GOGYO_COLOR[i]}">${GOGYO_NAME[i]}</td><td style="text-align:center">${cnt[i]}</td><td style="text-align:center;font-weight:bold;color:${mc}">${marks[i]}</td><td style="font-size:.85rem">${KENKOU_PARTS[i]}</td></tr>`;
+    }
+    kh+=`</tbody></table>`;
+    document.getElementById('kenkou-box').innerHTML=kh;
+  }
 
   // 魂の絵（干支象意SVG）
   renderSoulImage(res);
+
+  // 宇宙盤
+  document.getElementById('uchuban-box').innerHTML=renderUchuBan(res);
+
+  // 環状年盤
+  {const nb=renderNenban(res);
+  document.getElementById('nenban-svg').innerHTML=nb.svg;
+  document.getElementById('nenban-info').innerHTML=nb.info;}
 
   // 相性鑑定フォームを表示
   document.getElementById('aishoh-input-box').style.display='block';
@@ -1221,7 +1691,7 @@ const CHOKOU_TABLE=[
 function getChokouYojin(dKi,mShi){return (CHOKOU_TABLE[dKi]&&CHOKOU_TABLE[dKi][mShi])||[];}
 
 function hasKanInChart(kan,pillars){
-  return pillars.some(p=>KAN[p.ki]===kan);
+  return pillars.filter(p=>p.lbl!=='時柱').some(p=>KAN[p.ki]===kan);
 }
 
 function branchRel(a,b){
@@ -1254,6 +1724,7 @@ function buildMiniMeishiki(pillars){
 function crossCombos(pA,pB){
   const res=[];
   pA.forEach(a=>{
+    if(a.lbl==='時柱')return; // 時柱は鑑定に使用しない
     const b=pB.find(p=>p.lbl===a.lbl);
     if(!b)return;
     const r=[];
@@ -1349,8 +1820,8 @@ function buildAishohPrompt(resA,resB){
   const dA=resA.pillars.find(p=>p.lbl==='日柱'),dB=resB.pillars.find(p=>p.lbl==='日柱');
   const mShiA=resA.pillars.find(p=>p.lbl==='月柱').shi;
   const mShiB=resB.pillars.find(p=>p.lbl==='月柱').shi;
-  const plA=resA.pillars.map(p=>`${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（通変:${p.lbl==='日柱'?'日主':p.ts||'—'}）`);
-  const plB=resB.pillars.map(p=>`${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（通変:${p.lbl==='日柱'?'日主':p.ts||'—'}）`);
+  const plA=resA.pillars.filter(p=>p.lbl!=='時柱').map(p=>`${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（通変:${p.lbl==='日柱'?'日主':p.ts||'—'}）`);
+  const plB=resB.pillars.filter(p=>p.lbl!=='時柱').map(p=>`${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（通変:${p.lbl==='日柱'?'日主':p.ts||'—'}）`);
   const yA=getChokouYojin(resA.dKi,mShiA),yB=getChokouYojin(resB.dKi,mShiB);
   const yAinB=yA.filter(k=>hasKanInChart(k,resB.pillars));
   const yBinA=yB.filter(k=>hasKanInChart(k,resA.pillars));
@@ -1428,7 +1899,7 @@ window.addEventListener('load',loadApiKey);
 
 function buildGogyoForPrompt(res){
   const cnt=[0,0,0,0,0];
-  res.pillars.forEach(p=>{
+  res.pillars.filter(p=>p.lbl!=='時柱').forEach(p=>{
     cnt[Math.floor(p.ki/2)]++;
     if(p.zk){const zi=KAN.indexOf(p.zk);if(zi>=0)cnt[Math.floor(zi/2)]++;}
   });
@@ -1441,14 +1912,15 @@ function buildPrompt(res){
   const age=cyear-res.year;
   const dayP=res.pillars.find(p=>p.lbl==='日柱');
 
-  const plines=res.pillars.map(p=>{
+  const calcPillars=res.pillars.filter(p=>p.lbl!=='時柱'); // 時柱は鑑定に使用しない
+  const plines=calcPillars.map(p=>{
     const ts=p.lbl==='日柱'?'日主（本人）':(p.ts||'—');
     return `${p.lbl}: ${KAN[p.ki]}${SHI[p.shi]}（蔵干:${p.zk||'—'} / 通変星:${ts} / 十二運:${p.ju||'—'}）`;
   });
 
-  const kuuStr=`${SHI[res.kuu[0]]}・${SHI[res.kuu[1]]}`;
-  const kuuHit=res.pillars.filter(p=>p.shi===res.kuu[0]||p.shi===res.kuu[1]).map(p=>p.lbl);
-  const kuuDesc=kuuHit.length?`（${kuuHit.join('・')}が空亡）`:'（命式中なし）';
+  const tcsPairStr=TCS_PAIRNAME[res.kuu[0]]+'天中殺';
+  const kuuHit=calcPillars.filter(p=>p.shi===res.kuu[0]||p.shi===res.kuu[1]).map(p=>p.lbl);
+  const kuuDesc=kuuHit.length?`（${kuuHit.join('・')}が天中殺）`:'（命式中なし）';
 
   const duLines=res.daiun.slice(0,8).map(d=>{
     const ea=d.endAge!==undefined?d.endAge:d.age+10;
@@ -1460,9 +1932,9 @@ function buildPrompt(res){
   const tokLines=Object.entries(tokByP).map(([idx,stars])=>{
     const lbl=res.pillars[parseInt(idx)]?.lbl||'';
     return `  ${lbl}: ${stars.join(' ')}`;
-  });
+  }).filter(line=>!line.includes('時柱'));
 
-  const combos=detectCombosTable(res.pillars);
+  const combos=detectCombosTable(calcPillars);
   const comboStrs=[...new Set(combos.map(c=>c.lbl+': '+c.txt))];
 
   const hourStr=res.hour!==null?` ${res.hour}時${res.min||0}分`:'（時刻不明）';
@@ -1481,8 +1953,8 @@ ${plines.join('\n')}
 【五行バランス】
 ${buildGogyoForPrompt(res)}
 
-【空亡（天中殺）】
-${kuuStr}空亡 ${kuuDesc}
+【天中殺】
+${tcsPairStr} ${kuuDesc}
 
 【大運の流れ（10年ごと）】
 立運: ${res.isJun?'順行':'逆行'} / ${res.rYear}歳${res.rMonth?res.rMonth+'ヶ月':''}から大運スタート
@@ -1502,6 +1974,13 @@ ${comboStrs.length?'  '+comboStrs.join('\n  '):'  なし'}
 ## ◆ 課題・成長のテーマ
 ## ◆ 今の運気（現在の大運・年運）
 ## ◆ これからへのメッセージ`;
+}
+
+function openCalendar(){
+  if(!_lastRes)return;
+  const dP=_lastRes.pillars.find(p=>p.lbl==='日柱');
+  const url=`calendar.html?ki=${dP.ki}&shi=${dP.shi}&kuu=${_lastRes.kuu.join(',')}`;
+  window.open(url,'_blank');
 }
 
 async function generateReading(){
