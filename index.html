@@ -725,18 +725,24 @@ function renderNenban(res){
 
   // ──────── 大運天中殺 期間を先に計算 ────────
   const _tcsDaiun=daiun.filter(d=>d.shi===kuu[0]||d.shi===kuu[1]);
+  // 全体のsa/eaは情報表示用（入り・出の判定基準）
   let tcsStartAge=-1,tcsEndAge=-1;
   if(_tcsDaiun.length>0){
     tcsStartAge=Math.min(..._tcsDaiun.map(d=>d.age));
     tcsEndAge=Math.max(..._tcsDaiun.map(d=>d.endAge));
   }
+  // 各セグメントが大運天中殺期間内かどうか（飛び離れた2期を個別判定）
+  function inTcsDaiunAge(i){
+    return _tcsDaiun.some(d=>i>=d.age&&i<d.endAge);
+  }
   function tcsSegFill(i,isCur){
-    if(tcsStartAge<0||i<tcsStartAge||i>=tcsEndAge)return isCur?'#d8d8d8':'#ffffff';
-    if(i<tcsStartAge+5||i>=tcsEndAge-5)return'#c0c0c0'; // 入り・出の5年
-    return'#999999'; // 天中殺本体10年
+    if(!inTcsDaiunAge(i))return isCur?'#d8d8d8':'#ffffff';
+    // 入りの5年（全体の最初5年）・出の5年（全体の最後5年）
+    if(i<tcsStartAge+5||i>=tcsEndAge-5)return'#c0c0c0';
+    return'#999999'; // 天中殺本体
   }
   function tcsSegStroke(i){
-    if(tcsStartAge<0||i<tcsStartAge||i>=tcsEndAge)return['#aaa',0.5];
+    if(!inTcsDaiunAge(i))return['#aaa',0.5];
     return['#555',1.0];
   }
 
@@ -795,18 +801,19 @@ function renderNenban(res){
 
   svg+=`<circle cx="${CX}" cy="${CY}" r="${R_mid}" fill="none" stroke="#bbb" stroke-width="0.8"/>`;
   svg+=`<circle cx="${CX}" cy="${CY}" r="${R_tcs+10}" fill="none" stroke="#ddd" stroke-width="0.6" stroke-dasharray="2,2"/>`;
-  // 大運天中殺ブロック強調アーク（外縁に太い線）
-  if(tcsStartAge>=0){
+  // 大運天中殺ブロック強調アーク（一致する大運期間ごとに個別描画）
+  _tcsDaiun.forEach(d=>{
+    const sA=Math.max(0,d.age), eA=Math.min(60,d.endAge);
+    if(sA>=eA)return; // リング（0〜59歳）の範囲外はスキップ
     const R_mark=R_out+4;
-    const aS=aDN(tcsStartAge), aE=aDN(tcsEndAge);
+    const aS=aDN(sA), aE=aDN(eA);
     const [mx1,my1]=ptN(aS,R_mark),[mx2,my2]=ptN(aE,R_mark);
-    const large=tcsEndAge-tcsStartAge>30?1:0;
+    const large=eA-sA>30?1:0;
     svg+=`<path d="M${f(mx1)},${f(my1)} A${R_mark},${R_mark},0,${large},1,${f(mx2)},${f(my2)}" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round"/>`;
-    // 入り・出ラベル
-    const aMid=aDN(tcsStartAge+10);
+    const aMid=aDN(sA+(eA-sA)/2);
     const[lx,ly]=ptN(aMid,R_out+14);
     svg+=`<text x="${f(lx)}" y="${f(ly)}" text-anchor="middle" dominant-baseline="middle" font-size="7" fill="#333" font-weight="bold">大運天中殺</text>`;
-  }
+  });
   svg+=`<circle cx="${CX}" cy="${CY}" r="${R_in}" fill="white" stroke="#c8a96e" stroke-width="2"/>`;
   svg+=`<text x="${CX}" y="${CY-22}" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a2c0e">環状年盤</text>`;
   svg+=`<text x="${CX}" y="${CY-5}" text-anchor="middle" font-size="10" fill="#555">${year}年生まれ</text>`;
